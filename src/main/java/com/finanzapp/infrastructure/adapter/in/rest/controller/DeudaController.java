@@ -1,0 +1,154 @@
+package com.finanzapp.infrastructure.adapter.in.rest.controller;
+
+import com.finanzapp.domain.model.AbonoDeuda;
+import com.finanzapp.domain.model.Deuda;
+import com.finanzapp.domain.model.EstadoDeuda;
+import com.finanzapp.domain.model.TipoDeuda;
+import com.finanzapp.domain.port.in.DeudaUseCase;
+import com.finanzapp.infrastructure.adapter.in.rest.dto.ApiResponse;
+import com.finanzapp.infrastructure.adapter.in.rest.dto.deuda.AbonoRequest;
+import com.finanzapp.infrastructure.adapter.in.rest.dto.deuda.AbonoResponse;
+import com.finanzapp.infrastructure.adapter.in.rest.dto.deuda.DeudaRequest;
+import com.finanzapp.infrastructure.adapter.in.rest.dto.deuda.DeudaResponse;
+import com.finanzapp.infrastructure.security.CustomUserDetails;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.*;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Map;
+
+@RestController
+@RequestMapping("/api/v1/deudas")
+@RequiredArgsConstructor
+@Tag(name = "Deudas y Prestamos", description = "Gestion de deudas propias y dinero prestado")
+public class DeudaController {
+
+    private final DeudaUseCase deudaUseCase;
+
+    @PostMapping
+    @Operation(summary = "Crear deuda o prestamo")
+    public ResponseEntity<ApiResponse<DeudaResponse>> crear(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @Valid @RequestBody DeudaRequest request) {
+
+        Deuda deuda = Deuda.builder()
+                .usuarioId(userDetails.getId())
+                .tipo(request.getTipo())
+                .descripcion(request.getDescripcion())
+                .entidad(request.getEntidad())
+                .montoTotal(request.getMontoTotal())
+                .fechaInicio(request.getFechaInicio() != null ? request.getFechaInicio() : LocalDate.now())
+                .fechaLimite(request.getFechaLimite())
+                .build();
+
+        Deuda creada = deudaUseCase.registrar(deuda);
+        return ResponseEntity.ok(ApiResponse.success(DeudaResponse.fromDomain(creada), "Registro creado exitosamente"));
+    }
+
+    @GetMapping
+    @Operation(summary = "Listar deudas y prestamos del usuario")
+    public ResponseEntity<ApiResponse<List<DeudaResponse>>> listar(
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+
+        List<DeudaResponse> deudas = deudaUseCase.listarPorUsuario(userDetails.getId()).stream()
+                .map(DeudaResponse::fromDomain).toList();
+        return ResponseEntity.ok(ApiResponse.success(deudas));
+    }
+
+    @GetMapping("/{id}")
+    @Operation(summary = "Obtener deuda por ID")
+    public ResponseEntity<ApiResponse<DeudaResponse>> obtenerPorId(@PathVariable String id) {
+        Deuda deuda = deudaUseCase.obtenerPorId(java.util.UUID.fromString(id));
+        return ResponseEntity.ok(ApiResponse.success(DeudaResponse.fromDomain(deuda)));
+    }
+
+    @GetMapping("/tipo/{tipo}")
+    @Operation(summary = "Listar por tipo (DEUDA o PRESTAMO)")
+    public ResponseEntity<ApiResponse<List<DeudaResponse>>> listarPorTipo(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable TipoDeuda tipo) {
+
+        List<DeudaResponse> deudas = deudaUseCase.listarPorTipo(userDetails.getId(), tipo).stream()
+                .map(DeudaResponse::fromDomain).toList();
+        return ResponseEntity.ok(ApiResponse.success(deudas));
+    }
+
+    @GetMapping("/estado/{estado}")
+    @Operation(summary = "Listar por estado")
+    public ResponseEntity<ApiResponse<List<DeudaResponse>>> listarPorEstado(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable EstadoDeuda estado) {
+
+        List<DeudaResponse> deudas = deudaUseCase.listarPorEstado(userDetails.getId(), estado).stream()
+                .map(DeudaResponse::fromDomain).toList();
+        return ResponseEntity.ok(ApiResponse.success(deudas));
+    }
+
+    @PutMapping("/{id}")
+    @Operation(summary = "Actualizar deuda o prestamo")
+    public ResponseEntity<ApiResponse<DeudaResponse>> actualizar(
+            @PathVariable String id,
+            @Valid @RequestBody DeudaRequest request) {
+
+        Deuda datos = Deuda.builder()
+                .descripcion(request.getDescripcion())
+                .entidad(request.getEntidad())
+                .montoTotal(request.getMontoTotal())
+                .fechaLimite(request.getFechaLimite())
+                .build();
+
+        Deuda actualizada = deudaUseCase.actualizar(java.util.UUID.fromString(id), datos);
+        return ResponseEntity.ok(ApiResponse.success(DeudaResponse.fromDomain(actualizada), "Registro actualizado exitosamente"));
+    }
+
+    @DeleteMapping("/{id}")
+    @Operation(summary = "Eliminar deuda o prestamo")
+    public ResponseEntity<ApiResponse<Void>> eliminar(@PathVariable String id) {
+        deudaUseCase.eliminar(java.util.UUID.fromString(id));
+        return ResponseEntity.ok(ApiResponse.success(null, "Registro eliminado exitosamente"));
+    }
+
+    @PostMapping("/{id}/abonos")
+    @Operation(summary = "Registrar abono a deuda o prestamo")
+    public ResponseEntity<ApiResponse<AbonoResponse>> registrarAbono(
+            @PathVariable String id,
+            @Valid @RequestBody AbonoRequest request) {
+
+        AbonoDeuda abono = deudaUseCase.registrarAbono(
+                java.util.UUID.fromString(id), request.getMonto(), request.getDescripcion());
+        return ResponseEntity.ok(ApiResponse.success(AbonoResponse.fromDomain(abono), "Abono registrado exitosamente"));
+    }
+
+    @GetMapping("/{id}/abonos")
+    @Operation(summary = "Listar historial de abonos de una deuda")
+    public ResponseEntity<ApiResponse<List<AbonoResponse>>> listarAbonos(@PathVariable String id) {
+        List<AbonoResponse> abonos = deudaUseCase.listarAbonos(java.util.UUID.fromString(id)).stream()
+                .map(AbonoResponse::fromDomain).toList();
+        return ResponseEntity.ok(ApiResponse.success(abonos));
+    }
+
+    @GetMapping("/resumen")
+    @Operation(summary = "Resumen de deudas y prestamos del usuario")
+    public ResponseEntity<ApiResponse<Map<String, BigDecimal>>> obtenerResumen(
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+
+        BigDecimal totalDeudas = deudaUseCase.obtenerTotalDeudas(userDetails.getId());
+        BigDecimal totalPrestamos = deudaUseCase.obtenerTotalPrestamos(userDetails.getId());
+        BigDecimal abonosRecibidos = deudaUseCase.obtenerTotalAbonosPrestamosRecibidos(userDetails.getId());
+
+        Map<String, BigDecimal> resumen = Map.of(
+                "totalDeudas", totalDeudas,
+                "totalPrestamos", totalPrestamos,
+                "abonosRecibidos", abonosRecibidos
+        );
+
+        return ResponseEntity.ok(ApiResponse.success(resumen));
+    }
+}

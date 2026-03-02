@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  # Base de datos PostgreSQL
+  postgres:
+    image: postgres:16-alpine
+    container_name: finanzapp-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: finanzapp
+      POSTGRES_USER: ${DB_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-postgres} -d finanzapp"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - finanzapp-network
+
+  # Aplicación Spring Boot
+  finanzapp:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: finanzapp-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: jdbc:postgresql://postgres:5432/finanzapp
+      DB_USERNAME: ${DB_USERNAME:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      JWT_SECRET: ${JWT_SECRET:-MiClaveSecretaParaJWTQueTieneAlMenos256BitsDeSeguridad2024FinanzApp}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-86400000}
+      JWT_REFRESH_EXPIRATION: ${JWT_REFRESH_EXPIRATION:-604800000}
+      JPA_DDL_AUTO: update
+      JPA_SHOW_SQL: "false"
+      LOG_LEVEL: INFO
+      JAVA_OPTS: "-Xms256m -Xmx512m"
+    ports:
+      - "8080:8080"
+    networks:
+      - finanzapp-network
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  finanzapp-network:
+    driver: bridge

@@ -1,0 +1,28 @@
+version: '3.8'
+
+# Docker Compose para desarrollo local
+# Solo levanta PostgreSQL, la app se ejecuta localmente
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: finanzapp-db-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: finanzapp
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data_dev:/var/lib/postgresql/data
+      - ./init-db:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d finanzapp"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data_dev:
+    driver: local

@@ -1,0 +1,16 @@
+# Configuración para tests
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+
+jwt:
+  secret: TestSecretKeyParaJWTConAlMenos256BitsDeSeguridad2024
+  expiration: 86400000
+  refresh-expiration: 604800000
+
+logging:
+  level:
+    root: WARN
+    com.finanzapp: INFO
