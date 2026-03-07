@@ -37,4 +37,7 @@ public interface IngresoJpaRepository extends JpaRepository<IngresoEntity, UUID>
     @Modifying
     @Query("DELETE FROM IngresoEntity i WHERE i.prestamoId = :prestamoId")
     void deleteAllByPrestamoId(@Param("prestamoId") UUID prestamoId);
+
+    @Query("SELECT i.metodoPago, COALESCE(SUM(i.monto), 0) FROM IngresoEntity i WHERE i.usuarioId = :usuarioId GROUP BY i.metodoPago")
+    List<Object[]> sumMontoByUsuarioIdGroupByMetodoPago(@Param("usuarioId") UUID usuarioId);
 }

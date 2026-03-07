@@ -7,7 +7,9 @@ import com.finanzapp.domain.model.CategoriaIngreso;
 import com.finanzapp.domain.model.Deuda;
 import com.finanzapp.domain.model.EstadoDeuda;
 import com.finanzapp.domain.model.Gasto;
+import com.finanzapp.domain.model.GastoMetodoPago;
 import com.finanzapp.domain.model.Ingreso;
+import com.finanzapp.domain.model.MetodoPago;
 import com.finanzapp.domain.model.TipoDeuda;
 import com.finanzapp.domain.port.in.DeudaUseCase;
 import com.finanzapp.domain.port.out.AbonoDeudaRepositoryPort;
@@ -93,6 +95,10 @@ public class DeudaService implements DeudaUseCase {
         if (datosActualizados.getEntidad() != null) {
             existente.setEntidad(datosActualizados.getEntidad());
         }
+        if (datosActualizados.getCategoria() != null) {
+            existente.setCategoria(datosActualizados.getCategoria());
+        }
+        existente.setCategoriaPersonalizadaId(datosActualizados.getCategoriaPersonalizadaId());
         if (datosActualizados.getFechaLimite() != null) {
             existente.setFechaLimite(datosActualizados.getFechaLimite());
         }
@@ -131,7 +137,7 @@ public class DeudaService implements DeudaUseCase {
     }
 
     @Override
-    public AbonoDeuda registrarAbono(UUID deudaId, BigDecimal monto, String descripcion) {
+    public AbonoDeuda registrarAbono(UUID deudaId, BigDecimal monto, String descripcion, MetodoPago metodoPago) {
         if (monto == null || monto.compareTo(BigDecimal.ZERO) <= 0) {
             throw new DomainException("El monto del abono debe ser mayor a 0");
         }
@@ -164,9 +170,9 @@ public class DeudaService implements DeudaUseCase {
         AbonoDeuda guardado = abonoRepository.save(abono);
 
         if (deuda.getTipo() == TipoDeuda.DEUDA) {
-            guardado = crearGastoParaAbono(guardado, deuda);
+            guardado = crearGastoParaAbono(guardado, deuda, metodoPago);
         } else {
-            guardado = crearIngresoParaAbono(guardado, deuda);
+            guardado = crearIngresoParaAbono(guardado, deuda, metodoPago);
         }
 
         return guardado;
@@ -199,18 +205,34 @@ public class DeudaService implements DeudaUseCase {
         return total != null ? total : BigDecimal.ZERO;
     }
 
-    private AbonoDeuda crearGastoParaAbono(AbonoDeuda abono, Deuda deuda) {
+    private AbonoDeuda crearGastoParaAbono(AbonoDeuda abono, Deuda deuda, MetodoPago metodoPago) {
         String descripcionGasto = abono.getDescripcion() != null
                 ? abono.getDescripcion()
                 : "Abono a " + (deuda.getEntidad() != null ? deuda.getEntidad() : "deuda");
+
+        CategoriaGasto categoriaGasto = CategoriaGasto.ABONO;
+        if (deuda.getCategoria() != null) {
+            try {
+                categoriaGasto = CategoriaGasto.valueOf(deuda.getCategoria());
+            } catch (IllegalArgumentException ignored) {
+            }
+        }
+
+        GastoMetodoPago gastoMetodoPago = GastoMetodoPago.builder()
+                .id(UUID.randomUUID())
+                .metodo(metodoPago)
+                .monto(abono.getMonto())
+                .build();
 
         Gasto gasto = Gasto.builder()
                 .id(UUID.randomUUID())
                 .usuarioId(deuda.getUsuarioId())
                 .monto(abono.getMonto())
-                .categoria(CategoriaGasto.ABONO)
+                .categoria(categoriaGasto)
+                .categoriaPersonalizadaId(deuda.getCategoriaPersonalizadaId())
                 .deudaId(deuda.getId())
                 .descripcion(descripcionGasto)
+                .metodosPago(List.of(gastoMetodoPago))
                 .fecha(LocalDate.now())
                 .fechaCreacion(LocalDateTime.now())
                 .fechaActualizacion(LocalDateTime.now())
@@ -222,7 +244,7 @@ public class DeudaService implements DeudaUseCase {
         return abonoRepository.save(abono);
     }
 
-    private AbonoDeuda crearIngresoParaAbono(AbonoDeuda abono, Deuda deuda) {
+    private AbonoDeuda crearIngresoParaAbono(AbonoDeuda abono, Deuda deuda, MetodoPago metodoPago) {
         String descripcionIngreso = abono.getDescripcion() != null
                 ? abono.getDescripcion()
                 : "Cobro de " + (deuda.getEntidad() != null ? deuda.getEntidad() : "prestamo");
@@ -232,6 +254,7 @@ public class DeudaService implements DeudaUseCase {
                 .usuarioId(deuda.getUsuarioId())
                 .monto(abono.getMonto())
                 .categoria(CategoriaIngreso.ABONO)
+                .metodoPago(metodoPago)
                 .prestamoId(deuda.getId())
                 .montoAhorro(BigDecimal.ZERO)
                 .descripcion(descripcionIngreso)

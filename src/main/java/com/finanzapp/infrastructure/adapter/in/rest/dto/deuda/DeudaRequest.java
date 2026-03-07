@@ -24,6 +24,10 @@ public class DeudaRequest {
 
     private String entidad;
 
+    private String categoria;
+
+    private String categoriaPersonalizadaId;
+
     @NotNull(message = "El monto total es requerido")
     @DecimalMin(value = "0.01", message = "El monto debe ser mayor a 0")
     private BigDecimal montoTotal;

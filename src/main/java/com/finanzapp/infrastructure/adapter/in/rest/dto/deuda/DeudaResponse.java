@@ -23,6 +23,10 @@ public class DeudaResponse {
     private String tipoDescripcion;
     private String descripcion;
     private String entidad;
+    private String categoria;
+    private UUID categoriaPersonalizadaId;
+    private String categoriaDescripcion;
+    private String categoriaColor;
     private BigDecimal montoTotal;
     private BigDecimal montoAbonado;
     private BigDecimal montoRestante;
@@ -40,6 +44,10 @@ public class DeudaResponse {
                 .tipoDescripcion(deuda.getTipo().getDescripcion())
                 .descripcion(deuda.getDescripcion())
                 .entidad(deuda.getEntidad())
+                .categoria(deuda.getCategoria())
+                .categoriaPersonalizadaId(deuda.getCategoriaPersonalizadaId())
+                .categoriaDescripcion(deuda.getCategoriaDescripcion())
+                .categoriaColor(deuda.getCategoriaColor())
                 .montoTotal(deuda.getMontoTotal())
                 .montoAbonado(deuda.getMontoAbonado())
                 .montoRestante(deuda.getMontoRestante())

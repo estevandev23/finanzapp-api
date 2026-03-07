@@ -3,6 +3,7 @@ package com.finanzapp.domain.model;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 import lombok.AllArgsConstructor;
@@ -25,6 +26,7 @@ public class Gasto {
     private UUID deudaId;
     private String descripcion;
     private LocalDate fecha;
+    private List<GastoMetodoPago> metodosPago;
     private LocalDateTime fechaCreacion;
     private LocalDateTime fechaActualizacion;
 }

@@ -39,6 +39,16 @@ public class DeudaEntity {
     @Column(length = 200)
     private String entidad;
 
+    @Column(length = 100)
+    private String categoria;
+
+    @Column(name = "categoria_personalizada_id", columnDefinition = "uuid")
+    private UUID categoriaPersonalizadaId;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "categoria_personalizada_id", insertable = false, updatable = false)
+    private CategoriaPersonalizadaEntity categoriaPersonalizada;
+
     @Column(name = "monto_total", nullable = false, precision = 15, scale = 2)
     private BigDecimal montoTotal;
 

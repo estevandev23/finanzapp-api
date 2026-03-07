@@ -3,6 +3,8 @@ package com.finanzapp.infrastructure.adapter.out.persistence;
 import com.finanzapp.domain.model.CategoriaGasto;
 import com.finanzapp.domain.model.Gasto;
 import com.finanzapp.domain.port.out.GastoRepositoryPort;
+import com.finanzapp.infrastructure.adapter.out.persistence.entity.GastoEntity;
+import com.finanzapp.infrastructure.adapter.out.persistence.entity.GastoMetodoPagoEntity;
 import com.finanzapp.infrastructure.adapter.out.persistence.mapper.GastoMapper;
 import com.finanzapp.infrastructure.adapter.out.persistence.repository.GastoJpaRepository;
 import lombok.RequiredArgsConstructor;
@@ -24,9 +26,47 @@ public class GastoRepositoryAdapter implements GastoRepositoryPort {
 
     @Override
     public Gasto save(Gasto gasto) {
+        if (gasto.getId() != null) {
+            Optional<GastoEntity> existente = repository.findById(gasto.getId());
+            if (existente.isPresent()) {
+                return actualizarEntidadManaged(existente.get(), gasto);
+            }
+        }
         var entity = mapper.toEntity(gasto);
+        vincularMetodosPago(entity);
         var savedEntity = repository.save(entity);
         return mapper.toDomain(savedEntity);
+    }
+
+    private Gasto actualizarEntidadManaged(GastoEntity entity, Gasto gasto) {
+        entity.setMonto(gasto.getMonto());
+        entity.setCategoria(gasto.getCategoria());
+        entity.setCategoriaPersonalizadaId(gasto.getCategoriaPersonalizadaId());
+        entity.setDeudaId(gasto.getDeudaId());
+        entity.setDescripcion(gasto.getDescripcion());
+        entity.setFecha(gasto.getFecha());
+        entity.setFechaActualizacion(gasto.getFechaActualizacion());
+
+        if (gasto.getMetodosPago() != null) {
+            entity.getMetodosPago().clear();
+            for (var mp : gasto.getMetodosPago()) {
+                entity.getMetodosPago().add(GastoMetodoPagoEntity.builder()
+                        .id(mp.getId() != null ? mp.getId() : UUID.randomUUID())
+                        .gasto(entity)
+                        .metodo(mp.getMetodo())
+                        .monto(mp.getMonto())
+                        .build());
+            }
+        }
+
+        var savedEntity = repository.save(entity);
+        return mapper.toDomain(savedEntity);
+    }
+
+    private void vincularMetodosPago(GastoEntity entity) {
+        if (entity.getMetodosPago() != null) {
+            entity.getMetodosPago().forEach(mp -> mp.setGasto(entity));
+        }
     }
 
     @Override

@@ -7,6 +7,8 @@ import com.finanzapp.domain.model.CategoriaGasto;
 import com.finanzapp.domain.model.Deuda;
 import com.finanzapp.domain.model.EstadoDeuda;
 import com.finanzapp.domain.model.Gasto;
+import com.finanzapp.domain.model.GastoMetodoPago;
+import com.finanzapp.domain.model.MetodoPago;
 import com.finanzapp.domain.model.TipoDeuda;
 import com.finanzapp.domain.port.in.GastoUseCase;
 import com.finanzapp.domain.port.out.AbonoDeudaRepositoryPort;
@@ -19,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
@@ -42,6 +45,22 @@ public class GastoService implements GastoUseCase {
 
         if (gasto.getFecha() == null) {
             gasto.setFecha(LocalDate.now());
+        }
+
+        if (gasto.getMetodosPago() == null || gasto.getMetodosPago().isEmpty()) {
+            gasto.setMetodosPago(List.of(
+                GastoMetodoPago.builder()
+                    .id(UUID.randomUUID())
+                    .gastoId(gasto.getId())
+                    .metodo(MetodoPago.EFECTIVO)
+                    .monto(gasto.getMonto())
+                    .build()
+            ));
+        } else {
+            gasto.getMetodosPago().forEach(m -> {
+                m.setId(UUID.randomUUID());
+                m.setGastoId(gasto.getId());
+            });
         }
 
         Gasto guardado = gastoRepository.save(gasto);
@@ -136,6 +155,18 @@ public class GastoService implements GastoUseCase {
         }
         if (gastoActualizado.getFecha() != null) {
             gasto.setFecha(gastoActualizado.getFecha());
+        }
+        if (gastoActualizado.getMetodosPago() != null && !gastoActualizado.getMetodosPago().isEmpty()) {
+            List<GastoMetodoPago> nuevosMetodos = new ArrayList<>();
+            for (GastoMetodoPago mp : gastoActualizado.getMetodosPago()) {
+                nuevosMetodos.add(GastoMetodoPago.builder()
+                        .id(UUID.randomUUID())
+                        .gastoId(gasto.getId())
+                        .metodo(mp.getMetodo())
+                        .monto(mp.getMonto())
+                        .build());
+            }
+            gasto.setMetodosPago(nuevosMetodos);
         }
 
         gasto.setFechaActualizacion(LocalDateTime.now());

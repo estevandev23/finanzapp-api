@@ -1,5 +1,6 @@
-package com.finanzapp.infrastructure.adapter.in.rest.dto.deuda;
+package com.finanzapp.infrastructure.adapter.in.rest.dto.gasto;
 
+import com.finanzapp.domain.model.MetodoPago;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
@@ -11,14 +12,12 @@ import java.math.BigDecimal;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class AbonoRequest {
-
-    @NotNull(message = "El monto del abono es requerido")
-    @DecimalMin(value = "0.01", message = "El monto debe ser mayor a 0")
-    private BigDecimal monto;
-
-    private String descripcion;
+public class MetodoPagoDetalleRequest {
 
     @NotNull(message = "El metodo de pago es requerido")
-    private String metodoPago;
+    private MetodoPago metodo;
+
+    @NotNull(message = "El monto es requerido")
+    @DecimalMin(value = "0.01", message = "El monto debe ser mayor a 0")
+    private BigDecimal monto;
 }

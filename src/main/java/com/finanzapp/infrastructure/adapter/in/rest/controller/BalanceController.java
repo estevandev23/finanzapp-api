@@ -3,6 +3,7 @@ package com.finanzapp.infrastructure.adapter.in.rest.controller;
 import com.finanzapp.domain.model.Balance;
 import com.finanzapp.domain.port.in.BalanceUseCase;
 import com.finanzapp.infrastructure.adapter.in.rest.dto.ApiResponse;
+import com.finanzapp.infrastructure.adapter.in.rest.dto.balance.BalancePorMetodoResponse;
 import com.finanzapp.infrastructure.adapter.in.rest.dto.balance.BalanceResponse;
 import com.finanzapp.infrastructure.security.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
@@ -13,7 +14,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/balance")
@@ -41,5 +46,26 @@ public class BalanceController {
 
         Balance balance = balanceUseCase.obtenerBalancePorPeriodo(userDetails.getId(), fechaInicio, fechaFin);
         return ResponseEntity.ok(ApiResponse.success(BalanceResponse.fromDomain(balance)));
+    }
+
+    @GetMapping("/metodos")
+    @Operation(summary = "Obtener balance por método de pago", description = "Obtiene el balance desglosado por cada método de pago")
+    public ResponseEntity<ApiResponse<BalancePorMetodoResponse>> obtenerBalancePorMetodo(
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+
+        Map<String, BigDecimal[]> balancePorMetodo = balanceUseCase.obtenerBalancePorMetodoPago(userDetails.getId());
+
+        List<BalancePorMetodoResponse.MetodoBalance> metodos = new ArrayList<>();
+        balancePorMetodo.forEach((metodo, montos) -> metodos.add(
+                BalancePorMetodoResponse.MetodoBalance.builder()
+                        .metodo(metodo)
+                        .totalIngresos(montos[0])
+                        .totalGastos(montos[1])
+                        .balance(montos[0].subtract(montos[1]))
+                        .build()
+        ));
+
+        return ResponseEntity.ok(ApiResponse.success(
+                BalancePorMetodoResponse.builder().metodos(metodos).build()));
     }
 }

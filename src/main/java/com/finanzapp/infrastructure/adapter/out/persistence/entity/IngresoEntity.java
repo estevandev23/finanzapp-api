@@ -1,6 +1,7 @@
 package com.finanzapp.infrastructure.adapter.out.persistence.entity;
 
 import com.finanzapp.domain.model.CategoriaIngreso;
+import com.finanzapp.domain.model.MetodoPago;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -46,6 +47,10 @@ public class IngresoEntity {
 
     @Column(name = "prestamo_id", columnDefinition = "uuid")
     private UUID prestamoId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "metodo_pago", nullable = false)
+    private MetodoPago metodoPago;
 
     @Column(name = "fecha_creacion", nullable = false)
     private LocalDateTime fechaCreacion;

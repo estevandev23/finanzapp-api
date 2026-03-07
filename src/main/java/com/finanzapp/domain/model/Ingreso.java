@@ -27,6 +27,7 @@ public class Ingreso {
     private UUID categoriaPersonalizadaId;
     private String categoriaNombre;
     private String categoriaColor;
+    private MetodoPago metodoPago;
     private LocalDateTime fechaCreacion;
     private LocalDateTime fechaActualizacion;
 

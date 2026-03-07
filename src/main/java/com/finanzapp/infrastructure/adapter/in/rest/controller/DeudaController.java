@@ -3,6 +3,7 @@ package com.finanzapp.infrastructure.adapter.in.rest.controller;
 import com.finanzapp.domain.model.AbonoDeuda;
 import com.finanzapp.domain.model.Deuda;
 import com.finanzapp.domain.model.EstadoDeuda;
+import com.finanzapp.domain.model.MetodoPago;
 import com.finanzapp.domain.model.TipoDeuda;
 import com.finanzapp.domain.port.in.DeudaUseCase;
 import com.finanzapp.infrastructure.adapter.in.rest.dto.ApiResponse;
@@ -43,6 +44,11 @@ public class DeudaController {
                 .tipo(request.getTipo())
                 .descripcion(request.getDescripcion())
                 .entidad(request.getEntidad())
+                .categoria(request.getCategoria())
+                .categoriaPersonalizadaId(
+                        request.getCategoriaPersonalizadaId() != null
+                                ? java.util.UUID.fromString(request.getCategoriaPersonalizadaId())
+                                : null)
                 .montoTotal(request.getMontoTotal())
                 .fechaInicio(request.getFechaInicio() != null ? request.getFechaInicio() : LocalDate.now())
                 .fechaLimite(request.getFechaLimite())
@@ -100,6 +106,11 @@ public class DeudaController {
         Deuda datos = Deuda.builder()
                 .descripcion(request.getDescripcion())
                 .entidad(request.getEntidad())
+                .categoria(request.getCategoria())
+                .categoriaPersonalizadaId(
+                        request.getCategoriaPersonalizadaId() != null
+                                ? java.util.UUID.fromString(request.getCategoriaPersonalizadaId())
+                                : null)
                 .montoTotal(request.getMontoTotal())
                 .fechaLimite(request.getFechaLimite())
                 .build();
@@ -121,8 +132,9 @@ public class DeudaController {
             @PathVariable String id,
             @Valid @RequestBody AbonoRequest request) {
 
+        MetodoPago metodoPago = MetodoPago.valueOf(request.getMetodoPago());
         AbonoDeuda abono = deudaUseCase.registrarAbono(
-                java.util.UUID.fromString(id), request.getMonto(), request.getDescripcion());
+                java.util.UUID.fromString(id), request.getMonto(), request.getDescripcion(), metodoPago);
         return ResponseEntity.ok(ApiResponse.success(AbonoResponse.fromDomain(abono), "Abono registrado exitosamente"));
     }
 

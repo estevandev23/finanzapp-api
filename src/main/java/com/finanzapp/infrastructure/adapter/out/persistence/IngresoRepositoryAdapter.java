@@ -87,4 +87,9 @@ public class IngresoRepositoryAdapter implements IngresoRepositoryPort {
     public void deleteAllByPrestamoId(UUID prestamoId) {
         repository.deleteAllByPrestamoId(prestamoId);
     }
+
+    @Override
+    public List<Object[]> sumMontoByUsuarioIdGroupByMetodoPago(UUID usuarioId) {
+        return repository.sumMontoByUsuarioIdGroupByMetodoPago(usuarioId);
+    }
 }

@@ -2,6 +2,7 @@ package com.finanzapp.infrastructure.adapter.in.rest.dto.ingreso;
 
 import com.finanzapp.domain.model.CategoriaIngreso;
 import com.finanzapp.domain.model.Ingreso;
+import com.finanzapp.domain.model.MetodoPago;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -28,6 +29,8 @@ public class IngresoResponse {
     private BigDecimal montoAhorro;
     private BigDecimal montoDisponible;
     private UUID prestamoId;
+    private MetodoPago metodoPago;
+    private String metodoPagoDescripcion;
     private LocalDateTime fechaCreacion;
 
     public static IngresoResponse fromDomain(Ingreso ingreso) {
@@ -43,6 +46,8 @@ public class IngresoResponse {
                 .montoAhorro(ingreso.getMontoAhorro())
                 .montoDisponible(ingreso.getMontoDisponible())
                 .prestamoId(ingreso.getPrestamoId())
+                .metodoPago(ingreso.getMetodoPago())
+                .metodoPagoDescripcion(ingreso.getMetodoPago() != null ? ingreso.getMetodoPago().getDescripcion() : null)
                 .fechaCreacion(ingreso.getFechaCreacion())
                 .build();
     }

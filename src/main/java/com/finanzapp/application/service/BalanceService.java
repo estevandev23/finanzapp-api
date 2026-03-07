@@ -1,19 +1,21 @@
 package com.finanzapp.application.service;
 
 import com.finanzapp.domain.model.Balance;
+import com.finanzapp.domain.model.MetodoPago;
 import com.finanzapp.domain.model.TipoDeuda;
 import com.finanzapp.domain.port.in.BalanceUseCase;
 import com.finanzapp.domain.port.out.AhorroRepositoryPort;
 import com.finanzapp.domain.port.out.DeudaRepositoryPort;
 import com.finanzapp.domain.port.out.GastoRepositoryPort;
 import com.finanzapp.domain.port.out.IngresoRepositoryPort;
+import com.finanzapp.infrastructure.adapter.out.persistence.repository.GastoMetodoPagoJpaRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.UUID;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -24,6 +26,7 @@ public class BalanceService implements BalanceUseCase {
     private final GastoRepositoryPort gastoRepository;
     private final AhorroRepositoryPort ahorroRepository;
     private final DeudaRepositoryPort deudaRepository;
+    private final GastoMetodoPagoJpaRepository gastoMetodoPagoRepository;
 
     @Override
     public Balance obtenerBalanceGeneral(UUID usuarioId) {
@@ -55,6 +58,34 @@ public class BalanceService implements BalanceUseCase {
         Balance balance = Balance.calcular(totalIngresos, totalGastos, totalAhorros, ahorrosDesdeIngresos);
         balance.setUsuarioId(usuarioId);
         return balance;
+    }
+
+    @Override
+    public Map<String, BigDecimal[]> obtenerBalancePorMetodoPago(UUID usuarioId) {
+        Map<String, BigDecimal[]> resultado = new LinkedHashMap<>();
+        for (MetodoPago metodo : MetodoPago.values()) {
+            resultado.put(metodo.name(), new BigDecimal[]{BigDecimal.ZERO, BigDecimal.ZERO});
+        }
+
+        List<Object[]> ingresosPorMetodo = ingresoRepository.sumMontoByUsuarioIdGroupByMetodoPago(usuarioId);
+        for (Object[] row : ingresosPorMetodo) {
+            String metodo = row[0].toString();
+            BigDecimal monto = (BigDecimal) row[1];
+            if (resultado.containsKey(metodo)) {
+                resultado.get(metodo)[0] = monto;
+            }
+        }
+
+        List<Object[]> gastosPorMetodo = gastoMetodoPagoRepository.sumMontoByUsuarioIdGroupByMetodo(usuarioId);
+        for (Object[] row : gastosPorMetodo) {
+            String metodo = row[0].toString();
+            BigDecimal monto = (BigDecimal) row[1];
+            if (resultado.containsKey(metodo)) {
+                resultado.get(metodo)[1] = monto;
+            }
+        }
+
+        return resultado;
     }
 
     private BigDecimal obtenerValorOCero(BigDecimal valor) {

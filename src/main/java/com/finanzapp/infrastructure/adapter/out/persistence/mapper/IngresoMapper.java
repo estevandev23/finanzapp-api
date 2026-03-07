@@ -30,6 +30,7 @@ public class IngresoMapper {
                 .montoAhorro(entity.getMontoAhorro())
                 .categoriaPersonalizadaId(entity.getCategoriaPersonalizadaId())
                 .prestamoId(entity.getPrestamoId())
+                .metodoPago(entity.getMetodoPago())
                 .fechaCreacion(entity.getFechaCreacion())
                 .fechaActualizacion(entity.getFechaActualizacion())
                 .build();
@@ -48,6 +49,7 @@ public class IngresoMapper {
                 .montoAhorro(domain.getMontoAhorro())
                 .categoriaPersonalizadaId(domain.getCategoriaPersonalizadaId())
                 .prestamoId(domain.getPrestamoId())
+                .metodoPago(domain.getMetodoPago())
                 .fechaCreacion(domain.getFechaCreacion())
                 .fechaActualizacion(domain.getFechaActualizacion())
                 .build();

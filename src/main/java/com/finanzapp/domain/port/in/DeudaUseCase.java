@@ -5,6 +5,7 @@ import com.finanzapp.domain.model.Deuda;
 import com.finanzapp.domain.model.EstadoDeuda;
 import com.finanzapp.domain.model.TipoDeuda;
 
+import com.finanzapp.domain.model.MetodoPago;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
@@ -17,7 +18,7 @@ public interface DeudaUseCase {
     List<Deuda> listarPorEstado(UUID usuarioId, EstadoDeuda estado);
     Deuda actualizar(UUID id, Deuda deuda);
     void eliminar(UUID id);
-    AbonoDeuda registrarAbono(UUID deudaId, BigDecimal monto, String descripcion);
+    AbonoDeuda registrarAbono(UUID deudaId, BigDecimal monto, String descripcion, MetodoPago metodoPago);
     List<AbonoDeuda> listarAbonos(UUID deudaId);
     BigDecimal obtenerTotalDeudas(UUID usuarioId);
     BigDecimal obtenerTotalPrestamos(UUID usuarioId);

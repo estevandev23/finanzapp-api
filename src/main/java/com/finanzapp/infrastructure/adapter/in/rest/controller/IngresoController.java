@@ -49,6 +49,7 @@ public class IngresoController {
                 .montoAhorro(request.getMontoAhorro())
                 .metaId(request.getMetaId())
                 .prestamoId(request.getPrestamoId())
+                .metodoPago(request.getMetodoPago())
                 .build();
 
         Ingreso registrado = ingresoUseCase.registrar(ingreso);
@@ -141,6 +142,7 @@ public class IngresoController {
                 .montoAhorro(request.getMontoAhorro())
                 .metaId(request.getMetaId())
                 .prestamoId(request.getPrestamoId())
+                .metodoPago(request.getMetodoPago())
                 .build();
 
         Ingreso actualizado = ingresoUseCase.actualizar(id, ingreso);

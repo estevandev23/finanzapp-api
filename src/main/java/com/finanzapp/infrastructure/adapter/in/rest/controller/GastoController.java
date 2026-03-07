@@ -2,10 +2,13 @@ package com.finanzapp.infrastructure.adapter.in.rest.controller;
 
 import com.finanzapp.domain.model.CategoriaGasto;
 import com.finanzapp.domain.model.Gasto;
+import com.finanzapp.domain.model.GastoMetodoPago;
+import com.finanzapp.domain.model.MetodoPago;
 import com.finanzapp.domain.port.in.GastoUseCase;
 import com.finanzapp.infrastructure.adapter.in.rest.dto.ApiResponse;
 import com.finanzapp.infrastructure.adapter.in.rest.dto.gasto.GastoRequest;
 import com.finanzapp.infrastructure.adapter.in.rest.dto.gasto.GastoResponse;
+import com.finanzapp.infrastructure.adapter.in.rest.dto.gasto.MetodoPagoDetalleRequest;
 import com.finanzapp.infrastructure.security.CustomUserDetails;
 import com.finanzapp.domain.exception.DomainException;
 import io.swagger.v3.oas.annotations.Operation;
@@ -40,6 +43,21 @@ public class GastoController {
 
         validarCategoria(request);
 
+        List<GastoMetodoPago> metodos = null;
+        if (request.getMetodosPago() != null && !request.getMetodosPago().isEmpty()) {
+            metodos = request.getMetodosPago().stream()
+                    .map(m -> GastoMetodoPago.builder()
+                            .metodo(m.getMetodo())
+                            .monto(m.getMonto())
+                            .build())
+                    .toList();
+        } else if (request.getMetodoPago() != null) {
+            metodos = List.of(GastoMetodoPago.builder()
+                    .metodo(request.getMetodoPago())
+                    .monto(request.getMonto())
+                    .build());
+        }
+
         Gasto gasto = Gasto.builder()
                 .usuarioId(userDetails.getId())
                 .monto(request.getMonto())
@@ -48,6 +66,7 @@ public class GastoController {
                 .deudaId(request.getDeudaId())
                 .descripcion(request.getDescripcion())
                 .fecha(request.getFecha())
+                .metodosPago(metodos)
                 .build();
 
         Gasto registrado = gastoUseCase.registrar(gasto);
@@ -151,6 +170,21 @@ public class GastoController {
 
         validarCategoria(request);
 
+        List<GastoMetodoPago> metodos = null;
+        if (request.getMetodosPago() != null && !request.getMetodosPago().isEmpty()) {
+            metodos = request.getMetodosPago().stream()
+                    .map(m -> GastoMetodoPago.builder()
+                            .metodo(m.getMetodo())
+                            .monto(m.getMonto())
+                            .build())
+                    .toList();
+        } else if (request.getMetodoPago() != null) {
+            metodos = List.of(GastoMetodoPago.builder()
+                    .metodo(request.getMetodoPago())
+                    .monto(request.getMonto())
+                    .build());
+        }
+
         Gasto gasto = Gasto.builder()
                 .monto(request.getMonto())
                 .categoria(request.getCategoria())
@@ -158,6 +192,7 @@ public class GastoController {
                 .deudaId(request.getDeudaId())
                 .descripcion(request.getDescripcion())
                 .fecha(request.getFecha())
+                .metodosPago(metodos)
                 .build();
 
         Gasto actualizado = gastoUseCase.actualizar(id, gasto);

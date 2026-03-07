@@ -1,6 +1,7 @@
 package com.finanzapp.infrastructure.adapter.in.rest.dto.ingreso;
 
 import com.finanzapp.domain.model.CategoriaIngreso;
+import com.finanzapp.domain.model.MetodoPago;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
@@ -34,4 +35,6 @@ public class IngresoRequest {
     private UUID metaId;
 
     private UUID prestamoId;
+
+    private MetodoPago metodoPago;
 }

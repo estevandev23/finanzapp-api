@@ -21,6 +21,10 @@ public class Deuda {
     private TipoDeuda tipo;
     private String descripcion;
     private String entidad;
+    private String categoria;
+    private UUID categoriaPersonalizadaId;
+    private String categoriaDescripcion;
+    private String categoriaColor;
     private BigDecimal montoTotal;
     private BigDecimal montoAbonado;
     private BigDecimal montoRestante;

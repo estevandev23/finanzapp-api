@@ -8,6 +8,7 @@ import com.finanzapp.domain.model.CategoriaIngreso;
 import com.finanzapp.domain.model.Deuda;
 import com.finanzapp.domain.model.EstadoDeuda;
 import com.finanzapp.domain.model.Ingreso;
+import com.finanzapp.domain.model.MetodoPago;
 import com.finanzapp.domain.model.TipoDeuda;
 import com.finanzapp.domain.port.in.AhorroUseCase;
 import com.finanzapp.domain.port.in.IngresoUseCase;
@@ -47,6 +48,10 @@ public class IngresoService implements IngresoUseCase {
 
         if (ingreso.getMontoAhorro() == null) {
             ingreso.setMontoAhorro(BigDecimal.ZERO);
+        }
+
+        if (ingreso.getMetodoPago() == null) {
+            ingreso.setMetodoPago(MetodoPago.EFECTIVO);
         }
 
         Ingreso registrado = ingresoRepository.save(ingreso);
@@ -131,6 +136,9 @@ public class IngresoService implements IngresoUseCase {
         }
         if (ingresoActualizado.getMontoAhorro() != null) {
             ingreso.setMontoAhorro(ingresoActualizado.getMontoAhorro());
+        }
+        if (ingresoActualizado.getMetodoPago() != null) {
+            ingreso.setMetodoPago(ingresoActualizado.getMetodoPago());
         }
 
         ingreso.setFechaActualizacion(LocalDateTime.now());

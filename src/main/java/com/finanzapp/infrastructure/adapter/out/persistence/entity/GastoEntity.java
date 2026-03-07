@@ -10,6 +10,7 @@ import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -57,4 +58,7 @@ public class GastoEntity {
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "categoria_personalizada_id", insertable = false, updatable = false)
     private CategoriaPersonalizadaEntity categoriaPersonalizada;
+
+    @OneToMany(mappedBy = "gasto", fetch = FetchType.EAGER, cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<GastoMetodoPagoEntity> metodosPago;
 }

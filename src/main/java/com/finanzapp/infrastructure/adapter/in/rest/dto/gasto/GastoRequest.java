@@ -1,6 +1,8 @@
 package com.finanzapp.infrastructure.adapter.in.rest.dto.gasto;
 
 import com.finanzapp.domain.model.CategoriaGasto;
+import com.finanzapp.domain.model.MetodoPago;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
@@ -9,6 +11,7 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 
 @Data
@@ -29,4 +32,9 @@ public class GastoRequest {
     private String descripcion;
 
     private LocalDate fecha;
+
+    private MetodoPago metodoPago;
+
+    @Valid
+    private List<MetodoPagoDetalleRequest> metodosPago;
 }

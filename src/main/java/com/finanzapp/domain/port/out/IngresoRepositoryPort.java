@@ -21,4 +21,5 @@ public interface IngresoRepositoryPort {
     BigDecimal sumMontoAhorroByUsuarioIdAndFechaBetween(UUID usuarioId, LocalDate fechaInicio, LocalDate fechaFin);
     void deleteById(UUID id);
     void deleteAllByPrestamoId(UUID prestamoId);
+    List<Object[]> sumMontoByUsuarioIdGroupByMetodoPago(UUID usuarioId);
 }
