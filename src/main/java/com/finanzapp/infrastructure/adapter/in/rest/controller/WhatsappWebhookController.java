@@ -1,5 +1,7 @@
 package com.finanzapp.infrastructure.adapter.in.rest.controller;
 
+import com.finanzapp.application.service.SesionWhatsappService;
+import com.finanzapp.domain.exception.SesionWhatsappNoActivaException;
 import com.finanzapp.domain.model.*;
 import com.finanzapp.domain.port.in.*;
 import com.finanzapp.domain.port.out.DispositivoRepositoryPort;
@@ -29,6 +31,7 @@ public class WhatsappWebhookController {
     private final BalanceUseCase balanceUseCase;
     private final MetaFinancieraUseCase metaUseCase;
     private final DispositivoRepositoryPort dispositivoRepository;
+    private final SesionWhatsappService sesionWhatsappService;
 
     @PostMapping("/ingreso")
     @Operation(summary = "Registrar ingreso desde WhatsApp", description = "Endpoint para registrar ingresos desde N8N")
@@ -222,18 +225,15 @@ public class WhatsappWebhookController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
+    /**
+     * Valida que exista una sesion activa para el numero de WhatsApp,
+     * actualiza la ultima actividad y retorna el usuarioId asociado.
+     */
     private UUID obtenerUsuarioIdPorWhatsapp(String numeroWhatsapp) {
-        Dispositivo dispositivo = dispositivoRepository.findByNumeroWhatsapp(numeroWhatsapp)
-                .orElseThrow(() -> new RuntimeException("Dispositivo no encontrado. Registra tu número primero."));
+        SesionWhatsapp sesion = sesionWhatsappService.verificarSesion(numeroWhatsapp)
+                .orElseThrow(SesionWhatsappNoActivaException::new);
 
-        if (!dispositivo.isVerificado()) {
-            throw new RuntimeException("Dispositivo no verificado. Completa la verificación primero.");
-        }
-
-        if (!dispositivo.isActivo()) {
-            throw new RuntimeException("Dispositivo desactivado. Contacta al soporte.");
-        }
-
-        return dispositivo.getUsuarioId();
+        sesionWhatsappService.actualizarActividad(numeroWhatsapp);
+        return sesion.getUsuarioId();
     }
 }

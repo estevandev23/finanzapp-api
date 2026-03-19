@@ -47,6 +47,13 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error(ex.getMessage()));
     }
 
+    @ExceptionHandler(SesionWhatsappNoActivaException.class)
+    public ResponseEntity<ApiResponse<Void>> handleSesionWhatsappNoActivaException(SesionWhatsappNoActivaException ex) {
+        log.warn("Sesion WhatsApp no activa: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(ApiResponse.error(ex.getMessage()));
+    }
+
     @ExceptionHandler(SaldoInsuficienteException.class)
     public ResponseEntity<ApiResponse<Void>> handleSaldoInsuficienteException(SaldoInsuficienteException ex) {
         log.warn("Saldo insuficiente: {}", ex.getMessage());
