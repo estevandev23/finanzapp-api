@@ -102,6 +102,25 @@ public class WhatsappAuthController {
         return ResponseEntity.ok(ApiResponse.success(estado));
     }
 
+    @GetMapping("/obtener-token")
+    @Operation(summary = "Obtener token JWT de sesion activa",
+            description = "Retorna el token JWT de una sesion WhatsApp activa. Solo para uso interno del servidor MCP.")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> obtenerToken(
+            @RequestParam String numeroWhatsapp) {
+
+        String telefono = normalizarTelefono(numeroWhatsapp);
+
+        SesionWhatsapp sesion = sesionWhatsappService.verificarSesion(telefono)
+                .orElseThrow(() -> new DomainException("No hay sesion WhatsApp activa para este numero."));
+
+        sesionWhatsappService.actualizarActividad(telefono);
+
+        return ResponseEntity.ok(ApiResponse.success(Map.of(
+                "token", sesion.getToken(),
+                "usuarioId", sesion.getUsuarioId().toString()
+        )));
+    }
+
     @PostMapping("/registro")
     @Operation(summary = "Registrar usuario desde WhatsApp",
             description = "Registra un nuevo usuario o vincula una cuenta existente por email, crea su dispositivo WhatsApp y genera un codigo OTP de verificacion")
