@@ -1,5 +1,6 @@
 package com.finanzapp.application.service;
 
+import com.finanzapp.domain.exception.AccesoDenegadoException;
 import com.finanzapp.domain.exception.DomainException;
 import com.finanzapp.domain.model.AbonoDeuda;
 import com.finanzapp.domain.model.CategoriaGasto;
@@ -267,6 +268,30 @@ public class DeudaService implements DeudaUseCase {
 
         abono.setIngresoId(ingresoGuardado.getId());
         return abonoRepository.save(abono);
+    }
+
+    public Deuda obtenerPorIdValidado(UUID id, UUID usuarioId) {
+        Deuda deuda = obtenerPorId(id);
+        validarPropiedad(deuda.getUsuarioId(), usuarioId, "deuda");
+        return deuda;
+    }
+
+    public Deuda actualizarValidado(UUID id, Deuda datosActualizados, UUID usuarioId) {
+        Deuda deuda = obtenerPorId(id);
+        validarPropiedad(deuda.getUsuarioId(), usuarioId, "deuda");
+        return actualizar(id, datosActualizados);
+    }
+
+    public void eliminarValidado(UUID id, UUID usuarioId) {
+        Deuda deuda = obtenerPorId(id);
+        validarPropiedad(deuda.getUsuarioId(), usuarioId, "deuda");
+        eliminar(id);
+    }
+
+    private void validarPropiedad(UUID propietarioId, UUID solicitanteId, String recurso) {
+        if (!propietarioId.equals(solicitanteId)) {
+            throw new AccesoDenegadoException(recurso);
+        }
     }
 
     private void verificarCompletada(Deuda deuda) {

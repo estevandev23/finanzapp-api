@@ -5,7 +5,7 @@ import com.finanzapp.domain.model.Deuda;
 import com.finanzapp.domain.model.EstadoDeuda;
 import com.finanzapp.domain.model.MetodoPago;
 import com.finanzapp.domain.model.TipoDeuda;
-import com.finanzapp.domain.port.in.DeudaUseCase;
+import com.finanzapp.application.service.DeudaService;
 import com.finanzapp.infrastructure.adapter.in.rest.dto.ApiResponse;
 import com.finanzapp.infrastructure.adapter.in.rest.dto.deuda.AbonoRequest;
 import com.finanzapp.infrastructure.adapter.in.rest.dto.deuda.AbonoResponse;
@@ -31,7 +31,7 @@ import java.util.Map;
 @Tag(name = "Deudas y Prestamos", description = "Gestion de deudas propias y dinero prestado")
 public class DeudaController {
 
-    private final DeudaUseCase deudaUseCase;
+    private final DeudaService deudaService;
 
     @PostMapping
     @Operation(summary = "Crear deuda o prestamo")
@@ -54,7 +54,7 @@ public class DeudaController {
                 .fechaLimite(request.getFechaLimite())
                 .build();
 
-        Deuda creada = deudaUseCase.registrar(deuda);
+        Deuda creada = deudaService.registrar(deuda);
         return ResponseEntity.ok(ApiResponse.success(DeudaResponse.fromDomain(creada), "Registro creado exitosamente"));
     }
 
@@ -63,15 +63,17 @@ public class DeudaController {
     public ResponseEntity<ApiResponse<List<DeudaResponse>>> listar(
             @AuthenticationPrincipal CustomUserDetails userDetails) {
 
-        List<DeudaResponse> deudas = deudaUseCase.listarPorUsuario(userDetails.getId()).stream()
+        List<DeudaResponse> deudas = deudaService.listarPorUsuario(userDetails.getId()).stream()
                 .map(DeudaResponse::fromDomain).toList();
         return ResponseEntity.ok(ApiResponse.success(deudas));
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "Obtener deuda por ID")
-    public ResponseEntity<ApiResponse<DeudaResponse>> obtenerPorId(@PathVariable String id) {
-        Deuda deuda = deudaUseCase.obtenerPorId(java.util.UUID.fromString(id));
+    public ResponseEntity<ApiResponse<DeudaResponse>> obtenerPorId(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable String id) {
+        Deuda deuda = deudaService.obtenerPorIdValidado(java.util.UUID.fromString(id), userDetails.getId());
         return ResponseEntity.ok(ApiResponse.success(DeudaResponse.fromDomain(deuda)));
     }
 
@@ -81,7 +83,7 @@ public class DeudaController {
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable TipoDeuda tipo) {
 
-        List<DeudaResponse> deudas = deudaUseCase.listarPorTipo(userDetails.getId(), tipo).stream()
+        List<DeudaResponse> deudas = deudaService.listarPorTipo(userDetails.getId(), tipo).stream()
                 .map(DeudaResponse::fromDomain).toList();
         return ResponseEntity.ok(ApiResponse.success(deudas));
     }
@@ -92,7 +94,7 @@ public class DeudaController {
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable EstadoDeuda estado) {
 
-        List<DeudaResponse> deudas = deudaUseCase.listarPorEstado(userDetails.getId(), estado).stream()
+        List<DeudaResponse> deudas = deudaService.listarPorEstado(userDetails.getId(), estado).stream()
                 .map(DeudaResponse::fromDomain).toList();
         return ResponseEntity.ok(ApiResponse.success(deudas));
     }
@@ -100,6 +102,7 @@ public class DeudaController {
     @PutMapping("/{id}")
     @Operation(summary = "Actualizar deuda o prestamo")
     public ResponseEntity<ApiResponse<DeudaResponse>> actualizar(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable String id,
             @Valid @RequestBody DeudaRequest request) {
 
@@ -115,14 +118,16 @@ public class DeudaController {
                 .fechaLimite(request.getFechaLimite())
                 .build();
 
-        Deuda actualizada = deudaUseCase.actualizar(java.util.UUID.fromString(id), datos);
+        Deuda actualizada = deudaService.actualizarValidado(java.util.UUID.fromString(id), datos, userDetails.getId());
         return ResponseEntity.ok(ApiResponse.success(DeudaResponse.fromDomain(actualizada), "Registro actualizado exitosamente"));
     }
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Eliminar deuda o prestamo")
-    public ResponseEntity<ApiResponse<Void>> eliminar(@PathVariable String id) {
-        deudaUseCase.eliminar(java.util.UUID.fromString(id));
+    public ResponseEntity<ApiResponse<Void>> eliminar(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable String id) {
+        deudaService.eliminarValidado(java.util.UUID.fromString(id), userDetails.getId());
         return ResponseEntity.ok(ApiResponse.success(null, "Registro eliminado exitosamente"));
     }
 
@@ -133,7 +138,7 @@ public class DeudaController {
             @Valid @RequestBody AbonoRequest request) {
 
         MetodoPago metodoPago = MetodoPago.valueOf(request.getMetodoPago());
-        AbonoDeuda abono = deudaUseCase.registrarAbono(
+        AbonoDeuda abono = deudaService.registrarAbono(
                 java.util.UUID.fromString(id), request.getMonto(), request.getDescripcion(), metodoPago);
         return ResponseEntity.ok(ApiResponse.success(AbonoResponse.fromDomain(abono), "Abono registrado exitosamente"));
     }
@@ -141,7 +146,7 @@ public class DeudaController {
     @GetMapping("/{id}/abonos")
     @Operation(summary = "Listar historial de abonos de una deuda")
     public ResponseEntity<ApiResponse<List<AbonoResponse>>> listarAbonos(@PathVariable String id) {
-        List<AbonoResponse> abonos = deudaUseCase.listarAbonos(java.util.UUID.fromString(id)).stream()
+        List<AbonoResponse> abonos = deudaService.listarAbonos(java.util.UUID.fromString(id)).stream()
                 .map(AbonoResponse::fromDomain).toList();
         return ResponseEntity.ok(ApiResponse.success(abonos));
     }
@@ -151,9 +156,9 @@ public class DeudaController {
     public ResponseEntity<ApiResponse<Map<String, BigDecimal>>> obtenerResumen(
             @AuthenticationPrincipal CustomUserDetails userDetails) {
 
-        BigDecimal totalDeudas = deudaUseCase.obtenerTotalDeudas(userDetails.getId());
-        BigDecimal totalPrestamos = deudaUseCase.obtenerTotalPrestamos(userDetails.getId());
-        BigDecimal abonosRecibidos = deudaUseCase.obtenerTotalAbonosPrestamosRecibidos(userDetails.getId());
+        BigDecimal totalDeudas = deudaService.obtenerTotalDeudas(userDetails.getId());
+        BigDecimal totalPrestamos = deudaService.obtenerTotalPrestamos(userDetails.getId());
+        BigDecimal abonosRecibidos = deudaService.obtenerTotalAbonosPrestamosRecibidos(userDetails.getId());
 
         Map<String, BigDecimal> resumen = Map.of(
                 "totalDeudas", totalDeudas,

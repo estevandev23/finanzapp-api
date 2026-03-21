@@ -2,6 +2,7 @@ package com.finanzapp.infrastructure.adapter.in.rest.controller;
 
 import com.finanzapp.domain.model.Dispositivo;
 import com.finanzapp.domain.port.in.DispositivoUseCase;
+import com.finanzapp.domain.util.TelefonoUtils;
 import com.finanzapp.infrastructure.adapter.in.rest.dto.ApiResponse;
 import com.finanzapp.infrastructure.adapter.in.rest.dto.dispositivo.DispositivoRequest;
 import com.finanzapp.infrastructure.adapter.in.rest.dto.dispositivo.DispositivoResponse;
@@ -34,7 +35,7 @@ public class DispositivoController {
 
         Dispositivo dispositivo = dispositivoUseCase.registrar(
                 userDetails.getId(),
-                request.getNumeroWhatsapp(),
+                TelefonoUtils.normalizar(request.getNumeroWhatsapp()),
                 request.getNombreDispositivo()
         );
 
@@ -50,7 +51,8 @@ public class DispositivoController {
             @RequestParam String numeroWhatsapp,
             @RequestParam String codigo) {
 
-        Dispositivo dispositivo = dispositivoUseCase.verificar(numeroWhatsapp, codigo);
+        Dispositivo dispositivo = dispositivoUseCase.verificar(
+                TelefonoUtils.normalizar(numeroWhatsapp), codigo);
         return ResponseEntity.ok(ApiResponse.success(
                 DispositivoResponse.fromDomain(dispositivo),
                 "Dispositivo verificado exitosamente"

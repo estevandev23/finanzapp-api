@@ -1,5 +1,6 @@
 package com.finanzapp.application.service;
 
+import com.finanzapp.domain.exception.AccesoDenegadoException;
 import com.finanzapp.domain.exception.RecursoNotFoundException;
 import com.finanzapp.domain.model.Ahorro;
 import com.finanzapp.domain.port.in.AhorroUseCase;
@@ -99,6 +100,30 @@ public class AhorroService implements AhorroUseCase {
     public void eliminar(UUID id) {
         obtenerPorId(id);
         ahorroRepository.deleteById(id);
+    }
+
+    public Ahorro obtenerPorIdValidado(UUID id, UUID usuarioId) {
+        Ahorro ahorro = obtenerPorId(id);
+        validarPropiedad(ahorro.getUsuarioId(), usuarioId, "ahorro");
+        return ahorro;
+    }
+
+    public Ahorro actualizarValidado(UUID id, Ahorro ahorroActualizado, UUID usuarioId) {
+        Ahorro ahorro = obtenerPorId(id);
+        validarPropiedad(ahorro.getUsuarioId(), usuarioId, "ahorro");
+        return actualizar(id, ahorroActualizado);
+    }
+
+    public void eliminarValidado(UUID id, UUID usuarioId) {
+        Ahorro ahorro = obtenerPorId(id);
+        validarPropiedad(ahorro.getUsuarioId(), usuarioId, "ahorro");
+        eliminar(id);
+    }
+
+    private void validarPropiedad(UUID propietarioId, UUID solicitanteId, String recurso) {
+        if (!propietarioId.equals(solicitanteId)) {
+            throw new AccesoDenegadoException(recurso);
+        }
     }
 
     @Override

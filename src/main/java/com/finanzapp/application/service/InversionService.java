@@ -1,5 +1,6 @@
 package com.finanzapp.application.service;
 
+import com.finanzapp.domain.exception.AccesoDenegadoException;
 import com.finanzapp.domain.exception.RecursoNotFoundException;
 import com.finanzapp.domain.model.*;
 import com.finanzapp.domain.port.in.InversionUseCase;
@@ -116,5 +117,23 @@ public class InversionService implements InversionUseCase {
         }
 
         inversionRepository.deleteById(id);
+    }
+
+    public Inversion obtenerPorIdValidado(UUID id, UUID usuarioId) {
+        Inversion inversion = obtenerPorId(id);
+        validarPropiedad(inversion.getUsuarioId(), usuarioId, "inversion");
+        return inversion;
+    }
+
+    public void eliminarValidado(UUID id, UUID usuarioId) {
+        Inversion inversion = obtenerPorId(id);
+        validarPropiedad(inversion.getUsuarioId(), usuarioId, "inversion");
+        eliminar(id);
+    }
+
+    private void validarPropiedad(UUID propietarioId, UUID solicitanteId, String recurso) {
+        if (!propietarioId.equals(solicitanteId)) {
+            throw new AccesoDenegadoException(recurso);
+        }
     }
 }

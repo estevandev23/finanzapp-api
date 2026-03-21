@@ -4,7 +4,7 @@ import com.finanzapp.domain.model.CategoriaGasto;
 import com.finanzapp.domain.model.Gasto;
 import com.finanzapp.domain.model.GastoMetodoPago;
 import com.finanzapp.domain.model.MetodoPago;
-import com.finanzapp.domain.port.in.GastoUseCase;
+import com.finanzapp.application.service.GastoService;
 import com.finanzapp.infrastructure.adapter.in.rest.dto.ApiResponse;
 import com.finanzapp.infrastructure.adapter.in.rest.dto.gasto.GastoRequest;
 import com.finanzapp.infrastructure.adapter.in.rest.dto.gasto.GastoResponse;
@@ -33,7 +33,7 @@ import java.util.stream.Collectors;
 @Tag(name = "Gastos", description = "Gestión de gastos del usuario")
 public class GastoController {
 
-    private final GastoUseCase gastoUseCase;
+    private final GastoService gastoService;
 
     @PostMapping
     @Operation(summary = "Registrar gasto", description = "Registra un nuevo gasto para el usuario autenticado")
@@ -69,7 +69,7 @@ public class GastoController {
                 .metodosPago(metodos)
                 .build();
 
-        Gasto registrado = gastoUseCase.registrar(gasto);
+        Gasto registrado = gastoService.registrar(gasto);
         return ResponseEntity.ok(ApiResponse.success(GastoResponse.fromDomain(registrado), "Gasto registrado exitosamente"));
     }
 
@@ -78,7 +78,7 @@ public class GastoController {
     public ResponseEntity<ApiResponse<List<GastoResponse>>> listar(
             @AuthenticationPrincipal CustomUserDetails userDetails) {
 
-        List<GastoResponse> gastos = gastoUseCase.listarPorUsuario(userDetails.getId())
+        List<GastoResponse> gastos = gastoService.listarPorUsuario(userDetails.getId())
                 .stream()
                 .map(GastoResponse::fromDomain)
                 .collect(Collectors.toList());
@@ -88,8 +88,10 @@ public class GastoController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Obtener gasto", description = "Obtiene un gasto por su ID")
-    public ResponseEntity<ApiResponse<GastoResponse>> obtener(@PathVariable UUID id) {
-        Gasto gasto = gastoUseCase.obtenerPorId(id);
+    public ResponseEntity<ApiResponse<GastoResponse>> obtener(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable UUID id) {
+        Gasto gasto = gastoService.obtenerPorIdValidado(id, userDetails.getId());
         return ResponseEntity.ok(ApiResponse.success(GastoResponse.fromDomain(gasto)));
     }
 
@@ -100,7 +102,7 @@ public class GastoController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaInicio,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaFin) {
 
-        List<GastoResponse> gastos = gastoUseCase.listarPorPeriodo(userDetails.getId(), fechaInicio, fechaFin)
+        List<GastoResponse> gastos = gastoService.listarPorPeriodo(userDetails.getId(), fechaInicio, fechaFin)
                 .stream()
                 .map(GastoResponse::fromDomain)
                 .collect(Collectors.toList());
@@ -114,7 +116,7 @@ public class GastoController {
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable CategoriaGasto categoria) {
 
-        List<GastoResponse> gastos = gastoUseCase.listarPorCategoria(userDetails.getId(), categoria)
+        List<GastoResponse> gastos = gastoService.listarPorCategoria(userDetails.getId(), categoria)
                 .stream()
                 .map(GastoResponse::fromDomain)
                 .collect(Collectors.toList());
@@ -127,7 +129,7 @@ public class GastoController {
     public ResponseEntity<ApiResponse<BigDecimal>> obtenerTotal(
             @AuthenticationPrincipal CustomUserDetails userDetails) {
 
-        BigDecimal total = gastoUseCase.obtenerTotalGastos(userDetails.getId());
+        BigDecimal total = gastoService.obtenerTotalGastos(userDetails.getId());
         return ResponseEntity.ok(ApiResponse.success(total));
     }
 
@@ -138,7 +140,7 @@ public class GastoController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaInicio,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaFin) {
 
-        BigDecimal total = gastoUseCase.obtenerTotalGastosPorPeriodo(userDetails.getId(), fechaInicio, fechaFin);
+        BigDecimal total = gastoService.obtenerTotalGastosPorPeriodo(userDetails.getId(), fechaInicio, fechaFin);
         return ResponseEntity.ok(ApiResponse.success(total));
     }
 
@@ -147,7 +149,7 @@ public class GastoController {
     public ResponseEntity<ApiResponse<Map<CategoriaGasto, BigDecimal>>> obtenerDesglose(
             @AuthenticationPrincipal CustomUserDetails userDetails) {
 
-        Map<CategoriaGasto, BigDecimal> desglose = gastoUseCase.obtenerDesglosePorCategoria(userDetails.getId());
+        Map<CategoriaGasto, BigDecimal> desglose = gastoService.obtenerDesglosePorCategoria(userDetails.getId());
         return ResponseEntity.ok(ApiResponse.success(desglose));
     }
 
@@ -158,13 +160,14 @@ public class GastoController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaInicio,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaFin) {
 
-        Map<CategoriaGasto, BigDecimal> desglose = gastoUseCase.obtenerDesglosePorCategoriaPorPeriodo(userDetails.getId(), fechaInicio, fechaFin);
+        Map<CategoriaGasto, BigDecimal> desglose = gastoService.obtenerDesglosePorCategoriaPorPeriodo(userDetails.getId(), fechaInicio, fechaFin);
         return ResponseEntity.ok(ApiResponse.success(desglose));
     }
 
     @PutMapping("/{id}")
     @Operation(summary = "Actualizar gasto", description = "Actualiza un gasto existente")
     public ResponseEntity<ApiResponse<GastoResponse>> actualizar(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable UUID id,
             @Valid @RequestBody GastoRequest request) {
 
@@ -195,14 +198,16 @@ public class GastoController {
                 .metodosPago(metodos)
                 .build();
 
-        Gasto actualizado = gastoUseCase.actualizar(id, gasto);
+        Gasto actualizado = gastoService.actualizarValidado(id, gasto, userDetails.getId());
         return ResponseEntity.ok(ApiResponse.success(GastoResponse.fromDomain(actualizado), "Gasto actualizado exitosamente"));
     }
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Eliminar gasto", description = "Elimina un gasto existente")
-    public ResponseEntity<ApiResponse<Void>> eliminar(@PathVariable UUID id) {
-        gastoUseCase.eliminar(id);
+    public ResponseEntity<ApiResponse<Void>> eliminar(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable UUID id) {
+        gastoService.eliminarValidado(id, userDetails.getId());
         return ResponseEntity.ok(ApiResponse.success(null, "Gasto eliminado exitosamente"));
     }
 

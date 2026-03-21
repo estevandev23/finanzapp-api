@@ -1,5 +1,6 @@
 package com.finanzapp.application.service;
 
+import com.finanzapp.domain.exception.AccesoDenegadoException;
 import com.finanzapp.domain.exception.RecursoNotFoundException;
 import com.finanzapp.domain.model.Ahorro;
 import com.finanzapp.domain.model.EstadoMeta;
@@ -137,5 +138,29 @@ public class MetaFinancieraService implements MetaFinancieraUseCase {
     public void eliminar(UUID id) {
         obtenerPorId(id);
         metaRepository.deleteById(id);
+    }
+
+    public MetaFinanciera obtenerPorIdValidado(UUID id, UUID usuarioId) {
+        MetaFinanciera meta = obtenerPorId(id);
+        validarPropiedad(meta.getUsuarioId(), usuarioId, "meta financiera");
+        return meta;
+    }
+
+    public MetaFinanciera actualizarValidado(UUID id, MetaFinanciera metaActualizada, UUID usuarioId) {
+        MetaFinanciera meta = obtenerPorId(id);
+        validarPropiedad(meta.getUsuarioId(), usuarioId, "meta financiera");
+        return actualizar(id, metaActualizada);
+    }
+
+    public void eliminarValidado(UUID id, UUID usuarioId) {
+        MetaFinanciera meta = obtenerPorId(id);
+        validarPropiedad(meta.getUsuarioId(), usuarioId, "meta financiera");
+        eliminar(id);
+    }
+
+    private void validarPropiedad(UUID propietarioId, UUID solicitanteId, String recurso) {
+        if (!propietarioId.equals(solicitanteId)) {
+            throw new AccesoDenegadoException(recurso);
+        }
     }
 }

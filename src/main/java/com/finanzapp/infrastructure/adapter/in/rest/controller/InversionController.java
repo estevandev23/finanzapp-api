@@ -2,7 +2,7 @@ package com.finanzapp.infrastructure.adapter.in.rest.controller;
 
 import com.finanzapp.domain.model.EstadoInversion;
 import com.finanzapp.domain.model.Inversion;
-import com.finanzapp.domain.port.in.InversionUseCase;
+import com.finanzapp.application.service.InversionService;
 import com.finanzapp.infrastructure.adapter.in.rest.dto.ApiResponse;
 import com.finanzapp.infrastructure.adapter.in.rest.dto.inversion.InversionRequest;
 import com.finanzapp.infrastructure.adapter.in.rest.dto.inversion.InversionResponse;
@@ -26,7 +26,7 @@ import java.util.stream.Collectors;
 @Tag(name = "Inversiones", description = "Gestión de inversiones del usuario")
 public class InversionController {
 
-    private final InversionUseCase inversionUseCase;
+    private final InversionService inversionService;
 
     @PostMapping
     @Operation(summary = "Crear inversión", description = "Crea una nueva inversión y registra automáticamente un gasto asociado")
@@ -43,7 +43,7 @@ public class InversionController {
                 .fechaInversion(request.getFechaInversion())
                 .build();
 
-        Inversion creada = inversionUseCase.crear(inversion);
+        Inversion creada = inversionService.crear(inversion);
         return ResponseEntity.ok(ApiResponse.success(InversionResponse.fromDomain(creada), "Inversión creada exitosamente"));
     }
 
@@ -55,12 +55,12 @@ public class InversionController {
 
         List<InversionResponse> inversiones;
         if (estado != null) {
-            inversiones = inversionUseCase.listarPorEstado(userDetails.getId(), estado)
+            inversiones = inversionService.listarPorEstado(userDetails.getId(), estado)
                     .stream()
                     .map(InversionResponse::fromDomain)
                     .collect(Collectors.toList());
         } else {
-            inversiones = inversionUseCase.listarPorUsuario(userDetails.getId())
+            inversiones = inversionService.listarPorUsuario(userDetails.getId())
                     .stream()
                     .map(InversionResponse::fromDomain)
                     .collect(Collectors.toList());
@@ -71,8 +71,10 @@ public class InversionController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Obtener inversión", description = "Obtiene una inversión por su ID")
-    public ResponseEntity<ApiResponse<InversionResponse>> obtener(@PathVariable UUID id) {
-        Inversion inversion = inversionUseCase.obtenerPorId(id);
+    public ResponseEntity<ApiResponse<InversionResponse>> obtener(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable UUID id) {
+        Inversion inversion = inversionService.obtenerPorIdValidado(id, userDetails.getId());
         return ResponseEntity.ok(ApiResponse.success(InversionResponse.fromDomain(inversion)));
     }
 
@@ -82,14 +84,16 @@ public class InversionController {
             @PathVariable UUID id,
             @Valid @RequestBody RegistrarRetornoRequest request) {
 
-        Inversion inversion = inversionUseCase.registrarRetorno(id, request.getRetornoReal(), request.getFechaRetorno());
+        Inversion inversion = inversionService.registrarRetorno(id, request.getRetornoReal(), request.getFechaRetorno());
         return ResponseEntity.ok(ApiResponse.success(InversionResponse.fromDomain(inversion), "Retorno registrado exitosamente"));
     }
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Eliminar inversión", description = "Elimina una inversión y sus registros asociados (gasto e ingreso)")
-    public ResponseEntity<ApiResponse<Void>> eliminar(@PathVariable UUID id) {
-        inversionUseCase.eliminar(id);
+    public ResponseEntity<ApiResponse<Void>> eliminar(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable UUID id) {
+        inversionService.eliminarValidado(id, userDetails.getId());
         return ResponseEntity.ok(ApiResponse.success(null, "Inversión eliminada exitosamente"));
     }
 }

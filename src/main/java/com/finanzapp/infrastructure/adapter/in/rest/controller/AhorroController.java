@@ -1,7 +1,7 @@
 package com.finanzapp.infrastructure.adapter.in.rest.controller;
 
 import com.finanzapp.domain.model.Ahorro;
-import com.finanzapp.domain.port.in.AhorroUseCase;
+import com.finanzapp.application.service.AhorroService;
 import com.finanzapp.infrastructure.adapter.in.rest.dto.ApiResponse;
 import com.finanzapp.infrastructure.adapter.in.rest.dto.ahorro.AhorroRequest;
 import com.finanzapp.infrastructure.adapter.in.rest.dto.ahorro.AhorroResponse;
@@ -27,7 +27,7 @@ import java.util.stream.Collectors;
 @Tag(name = "Ahorros", description = "Gestión de ahorros del usuario")
 public class AhorroController {
 
-    private final AhorroUseCase ahorroUseCase;
+    private final AhorroService ahorroService;
 
     @PostMapping
     @Operation(summary = "Registrar ahorro", description = "Registra un nuevo ahorro para el usuario autenticado")
@@ -44,7 +44,7 @@ public class AhorroController {
                 .ingresoId(request.getIngresoId())
                 .build();
 
-        Ahorro registrado = ahorroUseCase.registrar(ahorro);
+        Ahorro registrado = ahorroService.registrar(ahorro);
         return ResponseEntity.ok(ApiResponse.success(AhorroResponse.fromDomain(registrado), "Ahorro registrado exitosamente"));
     }
 
@@ -53,7 +53,7 @@ public class AhorroController {
     public ResponseEntity<ApiResponse<List<AhorroResponse>>> listar(
             @AuthenticationPrincipal CustomUserDetails userDetails) {
 
-        List<AhorroResponse> ahorros = ahorroUseCase.listarPorUsuario(userDetails.getId())
+        List<AhorroResponse> ahorros = ahorroService.listarPorUsuario(userDetails.getId())
                 .stream()
                 .map(AhorroResponse::fromDomain)
                 .collect(Collectors.toList());
@@ -63,8 +63,10 @@ public class AhorroController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Obtener ahorro", description = "Obtiene un ahorro por su ID")
-    public ResponseEntity<ApiResponse<AhorroResponse>> obtener(@PathVariable UUID id) {
-        Ahorro ahorro = ahorroUseCase.obtenerPorId(id);
+    public ResponseEntity<ApiResponse<AhorroResponse>> obtener(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable UUID id) {
+        Ahorro ahorro = ahorroService.obtenerPorIdValidado(id, userDetails.getId());
         return ResponseEntity.ok(ApiResponse.success(AhorroResponse.fromDomain(ahorro)));
     }
 
@@ -75,7 +77,7 @@ public class AhorroController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaInicio,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaFin) {
 
-        List<AhorroResponse> ahorros = ahorroUseCase.listarPorPeriodo(userDetails.getId(), fechaInicio, fechaFin)
+        List<AhorroResponse> ahorros = ahorroService.listarPorPeriodo(userDetails.getId(), fechaInicio, fechaFin)
                 .stream()
                 .map(AhorroResponse::fromDomain)
                 .collect(Collectors.toList());
@@ -86,7 +88,7 @@ public class AhorroController {
     @GetMapping("/meta/{metaId}")
     @Operation(summary = "Listar por meta", description = "Lista los ahorros asociados a una meta financiera")
     public ResponseEntity<ApiResponse<List<AhorroResponse>>> listarPorMeta(@PathVariable UUID metaId) {
-        List<AhorroResponse> ahorros = ahorroUseCase.listarPorMeta(metaId)
+        List<AhorroResponse> ahorros = ahorroService.listarPorMeta(metaId)
                 .stream()
                 .map(AhorroResponse::fromDomain)
                 .collect(Collectors.toList());
@@ -99,7 +101,7 @@ public class AhorroController {
     public ResponseEntity<ApiResponse<BigDecimal>> obtenerTotal(
             @AuthenticationPrincipal CustomUserDetails userDetails) {
 
-        BigDecimal total = ahorroUseCase.obtenerTotalAhorros(userDetails.getId());
+        BigDecimal total = ahorroService.obtenerTotalAhorros(userDetails.getId());
         return ResponseEntity.ok(ApiResponse.success(total));
     }
 
@@ -110,13 +112,14 @@ public class AhorroController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaInicio,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaFin) {
 
-        BigDecimal total = ahorroUseCase.obtenerTotalAhorrosPorPeriodo(userDetails.getId(), fechaInicio, fechaFin);
+        BigDecimal total = ahorroService.obtenerTotalAhorrosPorPeriodo(userDetails.getId(), fechaInicio, fechaFin);
         return ResponseEntity.ok(ApiResponse.success(total));
     }
 
     @PutMapping("/{id}")
     @Operation(summary = "Actualizar ahorro", description = "Actualiza un ahorro existente")
     public ResponseEntity<ApiResponse<AhorroResponse>> actualizar(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable UUID id,
             @Valid @RequestBody AhorroRequest request) {
 
@@ -127,14 +130,16 @@ public class AhorroController {
                 .metaId(request.getMetaId())
                 .build();
 
-        Ahorro actualizado = ahorroUseCase.actualizar(id, ahorro);
+        Ahorro actualizado = ahorroService.actualizarValidado(id, ahorro, userDetails.getId());
         return ResponseEntity.ok(ApiResponse.success(AhorroResponse.fromDomain(actualizado), "Ahorro actualizado exitosamente"));
     }
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Eliminar ahorro", description = "Elimina un ahorro existente")
-    public ResponseEntity<ApiResponse<Void>> eliminar(@PathVariable UUID id) {
-        ahorroUseCase.eliminar(id);
+    public ResponseEntity<ApiResponse<Void>> eliminar(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable UUID id) {
+        ahorroService.eliminarValidado(id, userDetails.getId());
         return ResponseEntity.ok(ApiResponse.success(null, "Ahorro eliminado exitosamente"));
     }
 }

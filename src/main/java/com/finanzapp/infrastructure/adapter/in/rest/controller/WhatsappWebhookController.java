@@ -5,6 +5,7 @@ import com.finanzapp.domain.exception.SesionWhatsappNoActivaException;
 import com.finanzapp.domain.model.*;
 import com.finanzapp.domain.port.in.*;
 import com.finanzapp.domain.port.out.DispositivoRepositoryPort;
+import com.finanzapp.domain.util.TelefonoUtils;
 import com.finanzapp.infrastructure.adapter.in.rest.dto.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -230,10 +231,11 @@ public class WhatsappWebhookController {
      * actualiza la ultima actividad y retorna el usuarioId asociado.
      */
     private UUID obtenerUsuarioIdPorWhatsapp(String numeroWhatsapp) {
-        SesionWhatsapp sesion = sesionWhatsappService.verificarSesion(numeroWhatsapp)
+        String telefono = TelefonoUtils.normalizar(numeroWhatsapp);
+        SesionWhatsapp sesion = sesionWhatsappService.verificarSesion(telefono)
                 .orElseThrow(SesionWhatsappNoActivaException::new);
 
-        sesionWhatsappService.actualizarActividad(numeroWhatsapp);
+        sesionWhatsappService.actualizarActividad(telefono);
         return sesion.getUsuarioId();
     }
 }

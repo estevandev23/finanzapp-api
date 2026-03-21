@@ -1,5 +1,6 @@
 package com.finanzapp.application.service;
 
+import com.finanzapp.domain.exception.AccesoDenegadoException;
 import com.finanzapp.domain.exception.DomainException;
 import com.finanzapp.domain.exception.RecursoNotFoundException;
 import com.finanzapp.domain.model.Ahorro;
@@ -247,6 +248,30 @@ public class IngresoService implements IngresoUseCase {
                 .fechaCreacion(LocalDateTime.now())
                 .build();
         abonoDeudaRepository.save(abono);
+    }
+
+    public Ingreso obtenerPorIdValidado(UUID id, UUID usuarioId) {
+        Ingreso ingreso = obtenerPorId(id);
+        validarPropiedad(ingreso.getUsuarioId(), usuarioId, "ingreso");
+        return ingreso;
+    }
+
+    public Ingreso actualizarValidado(UUID id, Ingreso ingresoActualizado, UUID usuarioId) {
+        Ingreso ingreso = obtenerPorId(id);
+        validarPropiedad(ingreso.getUsuarioId(), usuarioId, "ingreso");
+        return actualizar(id, ingresoActualizado);
+    }
+
+    public void eliminarValidado(UUID id, UUID usuarioId) {
+        Ingreso ingreso = obtenerPorId(id);
+        validarPropiedad(ingreso.getUsuarioId(), usuarioId, "ingreso");
+        eliminar(id);
+    }
+
+    private void validarPropiedad(UUID propietarioId, UUID solicitanteId, String recurso) {
+        if (!propietarioId.equals(solicitanteId)) {
+            throw new AccesoDenegadoException(recurso);
+        }
     }
 
     private void actualizarEstadoDeuda(Deuda deuda) {

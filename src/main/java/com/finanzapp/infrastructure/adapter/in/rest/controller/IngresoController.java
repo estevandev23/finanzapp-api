@@ -2,7 +2,7 @@ package com.finanzapp.infrastructure.adapter.in.rest.controller;
 
 import com.finanzapp.domain.model.CategoriaIngreso;
 import com.finanzapp.domain.model.Ingreso;
-import com.finanzapp.domain.port.in.IngresoUseCase;
+import com.finanzapp.application.service.IngresoService;
 import com.finanzapp.infrastructure.adapter.in.rest.dto.ApiResponse;
 import com.finanzapp.infrastructure.adapter.in.rest.dto.ingreso.IngresoRequest;
 import com.finanzapp.infrastructure.adapter.in.rest.dto.ingreso.IngresoResponse;
@@ -29,7 +29,7 @@ import java.util.stream.Collectors;
 @Tag(name = "Ingresos", description = "Gestión de ingresos del usuario")
 public class IngresoController {
 
-    private final IngresoUseCase ingresoUseCase;
+    private final IngresoService ingresoService;
 
     @PostMapping
     @Operation(summary = "Registrar ingreso", description = "Registra un nuevo ingreso para el usuario autenticado")
@@ -52,7 +52,7 @@ public class IngresoController {
                 .metodoPago(request.getMetodoPago())
                 .build();
 
-        Ingreso registrado = ingresoUseCase.registrar(ingreso);
+        Ingreso registrado = ingresoService.registrar(ingreso);
         return ResponseEntity.ok(ApiResponse.success(IngresoResponse.fromDomain(registrado), "Ingreso registrado exitosamente"));
     }
 
@@ -61,7 +61,7 @@ public class IngresoController {
     public ResponseEntity<ApiResponse<List<IngresoResponse>>> listar(
             @AuthenticationPrincipal CustomUserDetails userDetails) {
 
-        List<IngresoResponse> ingresos = ingresoUseCase.listarPorUsuario(userDetails.getId())
+        List<IngresoResponse> ingresos = ingresoService.listarPorUsuario(userDetails.getId())
                 .stream()
                 .map(IngresoResponse::fromDomain)
                 .collect(Collectors.toList());
@@ -71,8 +71,10 @@ public class IngresoController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Obtener ingreso", description = "Obtiene un ingreso por su ID")
-    public ResponseEntity<ApiResponse<IngresoResponse>> obtener(@PathVariable UUID id) {
-        Ingreso ingreso = ingresoUseCase.obtenerPorId(id);
+    public ResponseEntity<ApiResponse<IngresoResponse>> obtener(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable UUID id) {
+        Ingreso ingreso = ingresoService.obtenerPorIdValidado(id, userDetails.getId());
         return ResponseEntity.ok(ApiResponse.success(IngresoResponse.fromDomain(ingreso)));
     }
 
@@ -83,7 +85,7 @@ public class IngresoController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaInicio,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaFin) {
 
-        List<IngresoResponse> ingresos = ingresoUseCase.listarPorPeriodo(userDetails.getId(), fechaInicio, fechaFin)
+        List<IngresoResponse> ingresos = ingresoService.listarPorPeriodo(userDetails.getId(), fechaInicio, fechaFin)
                 .stream()
                 .map(IngresoResponse::fromDomain)
                 .collect(Collectors.toList());
@@ -97,7 +99,7 @@ public class IngresoController {
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable CategoriaIngreso categoria) {
 
-        List<IngresoResponse> ingresos = ingresoUseCase.listarPorCategoria(userDetails.getId(), categoria)
+        List<IngresoResponse> ingresos = ingresoService.listarPorCategoria(userDetails.getId(), categoria)
                 .stream()
                 .map(IngresoResponse::fromDomain)
                 .collect(Collectors.toList());
@@ -110,7 +112,7 @@ public class IngresoController {
     public ResponseEntity<ApiResponse<BigDecimal>> obtenerTotal(
             @AuthenticationPrincipal CustomUserDetails userDetails) {
 
-        BigDecimal total = ingresoUseCase.obtenerTotalIngresos(userDetails.getId());
+        BigDecimal total = ingresoService.obtenerTotalIngresos(userDetails.getId());
         return ResponseEntity.ok(ApiResponse.success(total));
     }
 
@@ -121,13 +123,14 @@ public class IngresoController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaInicio,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaFin) {
 
-        BigDecimal total = ingresoUseCase.obtenerTotalIngresosPorPeriodo(userDetails.getId(), fechaInicio, fechaFin);
+        BigDecimal total = ingresoService.obtenerTotalIngresosPorPeriodo(userDetails.getId(), fechaInicio, fechaFin);
         return ResponseEntity.ok(ApiResponse.success(total));
     }
 
     @PutMapping("/{id}")
     @Operation(summary = "Actualizar ingreso", description = "Actualiza un ingreso existente")
     public ResponseEntity<ApiResponse<IngresoResponse>> actualizar(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable UUID id,
             @Valid @RequestBody IngresoRequest request) {
 
@@ -145,14 +148,16 @@ public class IngresoController {
                 .metodoPago(request.getMetodoPago())
                 .build();
 
-        Ingreso actualizado = ingresoUseCase.actualizar(id, ingreso);
+        Ingreso actualizado = ingresoService.actualizarValidado(id, ingreso, userDetails.getId());
         return ResponseEntity.ok(ApiResponse.success(IngresoResponse.fromDomain(actualizado), "Ingreso actualizado exitosamente"));
     }
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Eliminar ingreso", description = "Elimina un ingreso existente")
-    public ResponseEntity<ApiResponse<Void>> eliminar(@PathVariable UUID id) {
-        ingresoUseCase.eliminar(id);
+    public ResponseEntity<ApiResponse<Void>> eliminar(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable UUID id) {
+        ingresoService.eliminarValidado(id, userDetails.getId());
         return ResponseEntity.ok(ApiResponse.success(null, "Ingreso eliminado exitosamente"));
     }
 

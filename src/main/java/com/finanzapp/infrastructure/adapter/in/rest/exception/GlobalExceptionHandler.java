@@ -61,6 +61,13 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error(ex.getMessage()));
     }
 
+    @ExceptionHandler(AccesoDenegadoException.class)
+    public ResponseEntity<ApiResponse<Void>> handleAccesoDenegadoException(AccesoDenegadoException ex) {
+        log.warn("Acceso denegado: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(ApiResponse.error(ex.getMessage()));
+    }
+
     @ExceptionHandler(DomainException.class)
     public ResponseEntity<ApiResponse<Void>> handleDomainException(DomainException ex) {
         log.warn("Error de dominio: {}", ex.getMessage());

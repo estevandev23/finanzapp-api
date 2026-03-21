@@ -55,6 +55,19 @@ twilio:
   auth-token: ${TWILIO_AUTH_TOKEN:}
   phone-number: ${TWILIO_PHONE_NUMBER:}
 
+# Evolution API Configuration
+evolution:
+  api:
+    url: ${EVOLUTION_API_URL:http://evolution-api:8080}
+    key: ${EVOLUTION_API_KEY:}
+  instance:
+    name: ${EVOLUTION_INSTANCE_NAME:finanzapp}
+
+# Frontend URL
+app:
+  frontend:
+    url: ${FRONTEND_URL:https://finanzappweb.estevanv.dev}
+
 # JWT Configuration
 jwt:
   secret: ${JWT_SECRET:}

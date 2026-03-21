@@ -1,5 +1,6 @@
 package com.finanzapp.application.service;
 
+import com.finanzapp.domain.exception.AccesoDenegadoException;
 import com.finanzapp.domain.exception.DomainException;
 import com.finanzapp.domain.exception.RecursoNotFoundException;
 import com.finanzapp.domain.model.AbonoDeuda;
@@ -241,6 +242,30 @@ public class GastoService implements GastoUseCase {
                 .fechaCreacion(LocalDateTime.now())
                 .build();
         abonoDeudaRepository.save(abono);
+    }
+
+    public Gasto obtenerPorIdValidado(UUID id, UUID usuarioId) {
+        Gasto gasto = obtenerPorId(id);
+        validarPropiedad(gasto.getUsuarioId(), usuarioId, "gasto");
+        return gasto;
+    }
+
+    public Gasto actualizarValidado(UUID id, Gasto gastoActualizado, UUID usuarioId) {
+        Gasto gasto = obtenerPorId(id);
+        validarPropiedad(gasto.getUsuarioId(), usuarioId, "gasto");
+        return actualizar(id, gastoActualizado);
+    }
+
+    public void eliminarValidado(UUID id, UUID usuarioId) {
+        Gasto gasto = obtenerPorId(id);
+        validarPropiedad(gasto.getUsuarioId(), usuarioId, "gasto");
+        eliminar(id);
+    }
+
+    private void validarPropiedad(UUID propietarioId, UUID solicitanteId, String recurso) {
+        if (!propietarioId.equals(solicitanteId)) {
+            throw new AccesoDenegadoException(recurso);
+        }
     }
 
     private void actualizarEstadoDeuda(Deuda deuda) {
