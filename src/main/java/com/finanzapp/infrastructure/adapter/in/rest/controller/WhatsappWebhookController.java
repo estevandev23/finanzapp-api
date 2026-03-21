@@ -44,15 +44,16 @@ public class WhatsappWebhookController {
     @Operation(summary = "Registrar ingreso desde WhatsApp", description = "Endpoint para registrar ingresos desde N8N")
     public ResponseEntity<ApiResponse<Map<String, Object>>> registrarIngreso(
             @RequestParam String numeroWhatsapp,
-            @RequestParam BigDecimal monto,
+            @RequestParam String monto,
             @RequestParam String categoria,
             @RequestParam(required = false) String descripcion) {
 
         UUID usuarioId = obtenerUsuarioIdPorWhatsapp(numeroWhatsapp);
+        BigDecimal montoDecimal = parsearMonto(monto);
 
         Ingreso ingreso = Ingreso.builder()
                 .usuarioId(usuarioId)
-                .monto(monto)
+                .monto(montoDecimal)
                 .categoria(CategoriaIngreso.valueOf(categoria.toUpperCase()))
                 .descripcion(descripcion)
                 .fecha(LocalDate.now())
@@ -64,7 +65,7 @@ public class WhatsappWebhookController {
                 "id", registrado.getId(),
                 "monto", registrado.getMonto(),
                 "categoria", registrado.getCategoria().getDescripcion(),
-                "mensaje", String.format("Ingreso de $%s registrado en %s", monto, registrado.getCategoria().getDescripcion())
+                "mensaje", String.format("Ingreso de $%s registrado en %s", montoDecimal, registrado.getCategoria().getDescripcion())
         );
 
         return ResponseEntity.ok(ApiResponse.success(response));
@@ -74,15 +75,16 @@ public class WhatsappWebhookController {
     @Operation(summary = "Registrar gasto desde WhatsApp", description = "Endpoint para registrar gastos desde N8N")
     public ResponseEntity<ApiResponse<Map<String, Object>>> registrarGasto(
             @RequestParam String numeroWhatsapp,
-            @RequestParam BigDecimal monto,
+            @RequestParam String monto,
             @RequestParam String categoria,
             @RequestParam(required = false) String descripcion) {
 
         UUID usuarioId = obtenerUsuarioIdPorWhatsapp(numeroWhatsapp);
+        BigDecimal montoDecimal = parsearMonto(monto);
 
         Gasto gasto = Gasto.builder()
                 .usuarioId(usuarioId)
-                .monto(monto)
+                .monto(montoDecimal)
                 .categoria(CategoriaGasto.valueOf(categoria.toUpperCase()))
                 .descripcion(descripcion)
                 .fecha(LocalDate.now())
@@ -94,7 +96,7 @@ public class WhatsappWebhookController {
                 "id", registrado.getId(),
                 "monto", registrado.getMonto(),
                 "categoria", registrado.getCategoria().getDescripcion(),
-                "mensaje", String.format("Gasto de $%s registrado en %s", monto, registrado.getCategoria().getDescripcion())
+                "mensaje", String.format("Gasto de $%s registrado en %s", montoDecimal, registrado.getCategoria().getDescripcion())
         );
 
         return ResponseEntity.ok(ApiResponse.success(response));
@@ -104,15 +106,16 @@ public class WhatsappWebhookController {
     @Operation(summary = "Registrar ahorro desde WhatsApp", description = "Endpoint para registrar ahorros desde N8N")
     public ResponseEntity<ApiResponse<Map<String, Object>>> registrarAhorro(
             @RequestParam String numeroWhatsapp,
-            @RequestParam BigDecimal monto,
+            @RequestParam String monto,
             @RequestParam(required = false) String descripcion,
             @RequestParam(required = false) UUID metaId) {
 
         UUID usuarioId = obtenerUsuarioIdPorWhatsapp(numeroWhatsapp);
+        BigDecimal montoDecimal = parsearMonto(monto);
 
         Ahorro ahorro = Ahorro.builder()
                 .usuarioId(usuarioId)
-                .monto(monto)
+                .monto(montoDecimal)
                 .descripcion(descripcion)
                 .metaId(metaId)
                 .fecha(LocalDate.now())
@@ -241,12 +244,13 @@ public class WhatsappWebhookController {
             @RequestParam String numeroWhatsapp,
             @RequestParam String tipo,
             @RequestParam String descripcion,
-            @RequestParam BigDecimal montoTotal,
+            @RequestParam String montoTotal,
             @RequestParam(required = false) String entidad,
             @RequestParam(required = false) String categoria,
             @RequestParam(required = false) String fechaLimite) {
 
         UUID usuarioId = obtenerUsuarioIdPorWhatsapp(numeroWhatsapp);
+        BigDecimal montoTotalDecimal = parsearMonto(montoTotal);
 
         TipoDeuda tipoDeuda = TipoDeuda.valueOf(tipo.toUpperCase());
 
@@ -254,7 +258,7 @@ public class WhatsappWebhookController {
                 .usuarioId(usuarioId)
                 .tipo(tipoDeuda)
                 .descripcion(descripcion)
-                .montoTotal(montoTotal)
+                .montoTotal(montoTotalDecimal)
                 .entidad(entidad)
                 .categoria(categoria)
                 .fechaInicio(LocalDate.now())
@@ -270,7 +274,7 @@ public class WhatsappWebhookController {
         response.put("descripcion", registrada.getDescripcion());
         response.put("montoTotal", registrada.getMontoTotal());
         response.put("entidad", registrada.getEntidad());
-        response.put("mensaje", String.format("%s de $%s registrada: %s", tipoTexto, montoTotal, descripcion));
+        response.put("mensaje", String.format("%s de $%s registrada: %s", tipoTexto, montoTotalDecimal, descripcion));
 
         return ResponseEntity.ok(ApiResponse.success(response));
     }
@@ -329,26 +333,27 @@ public class WhatsappWebhookController {
     public ResponseEntity<ApiResponse<Map<String, Object>>> abonarDeuda(
             @PathVariable UUID deudaId,
             @RequestParam String numeroWhatsapp,
-            @RequestParam BigDecimal monto,
+            @RequestParam String monto,
             @RequestParam(required = false) String descripcion,
             @RequestParam(required = false, defaultValue = "EFECTIVO") String metodoPago) {
 
         obtenerUsuarioIdPorWhatsapp(numeroWhatsapp);
+        BigDecimal montoDecimal = parsearMonto(monto);
 
         MetodoPago metodo = MetodoPago.valueOf(metodoPago.toUpperCase());
-        AbonoDeuda abono = deudaUseCase.registrarAbono(deudaId, monto, descripcion, metodo);
+        AbonoDeuda abono = deudaUseCase.registrarAbono(deudaId, montoDecimal, descripcion, metodo);
 
         Deuda deudaActualizada = deudaUseCase.obtenerPorId(deudaId);
 
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("abonoId", abono.getId());
         response.put("deudaId", deudaId);
-        response.put("montoAbonado", monto);
+        response.put("montoAbonado", montoDecimal);
         response.put("montoRestante", deudaActualizada.getMontoRestante());
         response.put("porcentajeAvance", deudaActualizada.getPorcentajeAvance());
         response.put("estado", deudaActualizada.getEstado().name());
         response.put("mensaje", String.format("Abono de $%s registrado. Restante: $%s (%.1f%%)",
-                monto, deudaActualizada.getMontoRestante(), deudaActualizada.getPorcentajeAvance()));
+                montoDecimal, deudaActualizada.getMontoRestante(), deudaActualizada.getPorcentajeAvance()));
 
         return ResponseEntity.ok(ApiResponse.success(response));
     }
@@ -424,18 +429,21 @@ public class WhatsappWebhookController {
     public ResponseEntity<ApiResponse<Map<String, Object>>> crearInversion(
             @RequestParam String numeroWhatsapp,
             @RequestParam String nombre,
-            @RequestParam BigDecimal monto,
+            @RequestParam String monto,
             @RequestParam(required = false) String descripcion,
-            @RequestParam(required = false) BigDecimal retornoEsperado) {
+            @RequestParam(required = false) String retornoEsperado) {
 
         UUID usuarioId = obtenerUsuarioIdPorWhatsapp(numeroWhatsapp);
+        BigDecimal montoDecimal = parsearMonto(monto);
+        BigDecimal retornoEsperadoDecimal = retornoEsperado != null && !retornoEsperado.isBlank()
+                ? parsearMonto(retornoEsperado) : null;
 
         Inversion inversion = Inversion.builder()
                 .usuarioId(usuarioId)
                 .nombre(nombre)
-                .monto(monto)
+                .monto(montoDecimal)
                 .descripcion(descripcion)
-                .retornoEsperado(retornoEsperado)
+                .retornoEsperado(retornoEsperadoDecimal)
                 .fechaInversion(LocalDate.now())
                 .build();
 
@@ -446,7 +454,7 @@ public class WhatsappWebhookController {
         response.put("nombre", creada.getNombre());
         response.put("monto", creada.getMonto());
         response.put("retornoEsperado", creada.getRetornoEsperado());
-        response.put("mensaje", String.format("Inversion '%s' de $%s registrada exitosamente", nombre, monto));
+        response.put("mensaje", String.format("Inversion '%s' de $%s registrada exitosamente", nombre, montoDecimal));
 
         return ResponseEntity.ok(ApiResponse.success(response));
     }
@@ -502,11 +510,12 @@ public class WhatsappWebhookController {
     public ResponseEntity<ApiResponse<Map<String, Object>>> registrarRetornoInversion(
             @PathVariable UUID inversionId,
             @RequestParam String numeroWhatsapp,
-            @RequestParam BigDecimal retornoReal) {
+            @RequestParam String retornoReal) {
 
         obtenerUsuarioIdPorWhatsapp(numeroWhatsapp);
+        BigDecimal retornoRealDecimal = parsearMonto(retornoReal);
 
-        Inversion actualizada = inversionUseCase.registrarRetorno(inversionId, retornoReal, LocalDate.now());
+        Inversion actualizada = inversionUseCase.registrarRetorno(inversionId, retornoRealDecimal, LocalDate.now());
 
         BigDecimal ganancia = actualizada.calcularGanancia();
         String resultadoTexto = ganancia.compareTo(BigDecimal.ZERO) >= 0 ? "ganancia" : "perdida";
@@ -515,11 +524,11 @@ public class WhatsappWebhookController {
         response.put("id", actualizada.getId());
         response.put("nombre", actualizada.getNombre());
         response.put("montoInvertido", actualizada.getMonto());
-        response.put("retornoReal", retornoReal);
+        response.put("retornoReal", retornoRealDecimal);
         response.put("ganancia", ganancia);
         response.put("estado", actualizada.getEstado().name());
         response.put("mensaje", String.format("Retorno de $%s registrado para '%s'. %s de $%s",
-                retornoReal, actualizada.getNombre(),
+                retornoRealDecimal, actualizada.getNombre(),
                 resultadoTexto.substring(0, 1).toUpperCase() + resultadoTexto.substring(1),
                 ganancia.abs()));
 
@@ -694,5 +703,58 @@ public class WhatsappWebhookController {
 
         sesionWhatsappService.actualizarActividad(telefono);
         return sesion.getUsuarioId();
+    }
+
+    /**
+     * Parsea un monto desde texto libre (puede venir con formato del AI: "$50,000", "50.000", "50000").
+     * Limpia caracteres no numericos y convierte a BigDecimal.
+     */
+    private BigDecimal parsearMonto(String montoTexto) {
+        if (montoTexto == null || montoTexto.isBlank()) {
+            throw new IllegalArgumentException("El monto es obligatorio y no puede estar vacio");
+        }
+
+        String limpio = montoTexto.trim()
+                .replace("$", "")
+                .replace(" ", "")
+                .replace("_", "");
+
+        // Si tiene tanto puntos como comas, asumir formato con separador de miles
+        if (limpio.contains(",") && limpio.contains(".")) {
+            if (limpio.lastIndexOf(",") > limpio.lastIndexOf(".")) {
+                // Coma es separador decimal (formato europeo/colombiano): 1.000.000,50
+                limpio = limpio.replace(".", "").replace(",", ".");
+            } else {
+                // Punto es separador decimal (formato US): 1,000,000.50
+                limpio = limpio.replace(",", "");
+            }
+        } else if (limpio.contains(",")) {
+            long comaCount = limpio.chars().filter(c -> c == ',').count();
+            if (comaCount == 1 && limpio.indexOf(",") >= limpio.length() - 3) {
+                limpio = limpio.replace(",", ".");
+            } else {
+                limpio = limpio.replace(",", "");
+            }
+        } else if (limpio.contains(".")) {
+            // Solo puntos: verificar si es separador de miles (patron: grupos de 3 digitos)
+            long dotCount = limpio.chars().filter(c -> c == '.').count();
+            String despuesPunto = limpio.substring(limpio.lastIndexOf(".") + 1);
+            if (dotCount >= 1 && despuesPunto.length() == 3 && !limpio.startsWith("0.")) {
+                // Patron de miles: "50.000", "1.000.000"
+                limpio = limpio.replace(".", "");
+            }
+        }
+
+        try {
+            BigDecimal resultado = new BigDecimal(limpio);
+            if (resultado.compareTo(BigDecimal.ZERO) <= 0) {
+                throw new IllegalArgumentException("El monto debe ser mayor a cero");
+            }
+            return resultado;
+        } catch (NumberFormatException e) {
+            log.warn("No se pudo parsear el monto recibido: '{}' (limpio: '{}')", montoTexto, limpio);
+            throw new IllegalArgumentException(
+                    String.format("El monto '%s' no es un valor numerico valido", montoTexto));
+        }
     }
 }
