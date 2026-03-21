@@ -327,11 +327,11 @@ public class WhatsappWebhookController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
-    @PostMapping("/deuda/{deudaId}/abono")
+    @PostMapping("/deuda/abono")
     @Operation(summary = "Registrar abono a deuda desde WhatsApp",
             description = "Registra un pago parcial o total hacia una deuda o prestamo")
     public ResponseEntity<ApiResponse<Map<String, Object>>> abonarDeuda(
-            @PathVariable UUID deudaId,
+            @RequestParam String deudaId,
             @RequestParam String numeroWhatsapp,
             @RequestParam String monto,
             @RequestParam(required = false) String descripcion,
@@ -339,15 +339,16 @@ public class WhatsappWebhookController {
 
         obtenerUsuarioIdPorWhatsapp(numeroWhatsapp);
         BigDecimal montoDecimal = parsearMonto(monto);
+        UUID deudaUUID = UUID.fromString(deudaId.trim());
 
         MetodoPago metodo = MetodoPago.valueOf(metodoPago.toUpperCase());
-        AbonoDeuda abono = deudaUseCase.registrarAbono(deudaId, montoDecimal, descripcion, metodo);
+        AbonoDeuda abono = deudaUseCase.registrarAbono(deudaUUID, montoDecimal, descripcion, metodo);
 
-        Deuda deudaActualizada = deudaUseCase.obtenerPorId(deudaId);
+        Deuda deudaActualizada = deudaUseCase.obtenerPorId(deudaUUID);
 
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("abonoId", abono.getId());
-        response.put("deudaId", deudaId);
+        response.put("deudaId", deudaUUID);
         response.put("montoAbonado", montoDecimal);
         response.put("montoRestante", deudaActualizada.getMontoRestante());
         response.put("porcentajeAvance", deudaActualizada.getPorcentajeAvance());
@@ -384,17 +385,18 @@ public class WhatsappWebhookController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
-    @GetMapping("/deuda/{deudaId}/abonos")
+    @GetMapping("/deuda/abonos")
     @Operation(summary = "Historial de abonos de una deuda desde WhatsApp",
             description = "Lista todos los abonos realizados a una deuda o prestamo")
     public ResponseEntity<ApiResponse<Map<String, Object>>> historialAbonos(
-            @PathVariable UUID deudaId,
+            @RequestParam String deudaId,
             @RequestParam String numeroWhatsapp) {
 
         obtenerUsuarioIdPorWhatsapp(numeroWhatsapp);
+        UUID deudaUUID = UUID.fromString(deudaId.trim());
 
-        List<AbonoDeuda> abonos = deudaUseCase.listarAbonos(deudaId);
-        Deuda deuda = deudaUseCase.obtenerPorId(deudaId);
+        List<AbonoDeuda> abonos = deudaUseCase.listarAbonos(deudaUUID);
+        Deuda deuda = deudaUseCase.obtenerPorId(deudaUUID);
 
         List<Map<String, Object>> abonosList = abonos.stream().map(a -> {
             Map<String, Object> item = new LinkedHashMap<>();
@@ -504,18 +506,19 @@ public class WhatsappWebhookController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
-    @PostMapping("/inversion/{inversionId}/retorno")
+    @PostMapping("/inversion/retorno")
     @Operation(summary = "Registrar retorno de inversion desde WhatsApp",
             description = "Registra el retorno real de una inversion y la marca como finalizada")
     public ResponseEntity<ApiResponse<Map<String, Object>>> registrarRetornoInversion(
-            @PathVariable UUID inversionId,
+            @RequestParam String inversionId,
             @RequestParam String numeroWhatsapp,
             @RequestParam String retornoReal) {
 
         obtenerUsuarioIdPorWhatsapp(numeroWhatsapp);
         BigDecimal retornoRealDecimal = parsearMonto(retornoReal);
+        UUID inversionUUID = UUID.fromString(inversionId.trim());
 
-        Inversion actualizada = inversionUseCase.registrarRetorno(inversionId, retornoRealDecimal, LocalDate.now());
+        Inversion actualizada = inversionUseCase.registrarRetorno(inversionUUID, retornoRealDecimal, LocalDate.now());
 
         BigDecimal ganancia = actualizada.calcularGanancia();
         String resultadoTexto = ganancia.compareTo(BigDecimal.ZERO) >= 0 ? "ganancia" : "perdida";
