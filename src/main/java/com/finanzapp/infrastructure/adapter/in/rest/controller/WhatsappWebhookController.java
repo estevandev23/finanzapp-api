@@ -7,15 +7,19 @@ import com.finanzapp.domain.port.in.*;
 import com.finanzapp.domain.port.out.DispositivoRepositoryPort;
 import com.finanzapp.domain.util.TelefonoUtils;
 import com.finanzapp.infrastructure.adapter.in.rest.dto.ApiResponse;
+import com.finanzapp.infrastructure.adapter.out.persistence.entity.ColaMensajeWhatsappEntity;
+import com.finanzapp.infrastructure.adapter.out.persistence.repository.ColaMensajeWhatsappJpaRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.*;
 
 @RestController
@@ -34,6 +38,7 @@ public class WhatsappWebhookController {
     private final InversionUseCase inversionUseCase;
     private final DispositivoRepositoryPort dispositivoRepository;
     private final SesionWhatsappService sesionWhatsappService;
+    private final ColaMensajeWhatsappJpaRepository colaMensajeRepository;
 
     @PostMapping("/ingreso")
     @Operation(summary = "Registrar ingreso desde WhatsApp", description = "Endpoint para registrar ingresos desde N8N")
@@ -591,6 +596,91 @@ public class WhatsappWebhookController {
         response.put("mensaje", analisis.toString());
 
         return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    // ========================
+    // Cola de mensajes WhatsApp (debounce)
+    // ========================
+
+    @PostMapping("/cola/guardar")
+    @Operation(summary = "Guardar mensaje en cola", description = "Almacena un mensaje de WhatsApp en la cola para debounce. No requiere sesion activa.")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> guardarMensajeEnCola(
+            @RequestParam String telefono,
+            @RequestParam String texto,
+            @RequestParam(required = false) String contacto,
+            @RequestParam(required = false) String messageId,
+            @RequestParam(required = false, defaultValue = "false") Boolean esAudio) {
+
+        ColaMensajeWhatsappEntity mensaje = ColaMensajeWhatsappEntity.builder()
+                .numeroTelefono(telefono)
+                .textoMensaje(texto)
+                .nombreContacto(contacto)
+                .messageId(messageId)
+                .esAudio(esAudio)
+                .recibidoEn(LocalDateTime.now())
+                .procesado(false)
+                .build();
+
+        mensaje = colaMensajeRepository.save(mensaje);
+
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("id", mensaje.getId());
+        data.put("recibidoEn", mensaje.getRecibidoEn().toString());
+
+        return ResponseEntity.ok(ApiResponse.success(data, "Mensaje guardado en cola"));
+    }
+
+    @PostMapping("/cola/procesar")
+    @Transactional
+    @Operation(summary = "Procesar cola de mensajes", description = "Verifica si hay mensajes mas recientes. Si no, combina todos los pendientes y los marca como procesados.")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> procesarColaMensajes(
+            @RequestParam String telefono,
+            @RequestParam Long colaId) {
+
+        long masRecientes = colaMensajeRepository
+                .countByNumeroTelefonoAndProcesadoFalseAndIdGreaterThan(telefono, colaId);
+
+        Map<String, Object> data = new LinkedHashMap<>();
+
+        if (masRecientes > 0) {
+            data.put("hayMasRecientes", true);
+            data.put("textoCombinado", null);
+            data.put("cantidadMensajes", 0);
+            return ResponseEntity.ok(ApiResponse.success(data, "Hay mensajes mas recientes pendientes"));
+        }
+
+        List<ColaMensajeWhatsappEntity> pendientes = colaMensajeRepository
+                .findByNumeroTelefonoAndProcesadoFalseOrderByRecibidoEnAsc(telefono);
+
+        if (pendientes.isEmpty()) {
+            data.put("hayMasRecientes", false);
+            data.put("textoCombinado", null);
+            data.put("cantidadMensajes", 0);
+            return ResponseEntity.ok(ApiResponse.success(data, "No hay mensajes pendientes"));
+        }
+
+        String textoCombinado;
+        if (pendientes.size() == 1) {
+            textoCombinado = pendientes.get(0).getTextoMensaje();
+        } else {
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < pendientes.size(); i++) {
+                sb.append("Mensaje ").append(i + 1).append(": ")
+                  .append(pendientes.get(i).getTextoMensaje());
+                if (i < pendientes.size() - 1) {
+                    sb.append("\n");
+                }
+            }
+            textoCombinado = sb.toString();
+        }
+
+        colaMensajeRepository.marcarComoProcesados(telefono);
+
+        data.put("hayMasRecientes", false);
+        data.put("textoCombinado", textoCombinado);
+        data.put("cantidadMensajes", pendientes.size());
+
+        return ResponseEntity.ok(ApiResponse.success(data, "Mensajes procesados"));
     }
 
     /**
