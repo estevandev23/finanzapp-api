@@ -83,6 +83,18 @@ public class WhatsappAuthController {
         Optional<SesionWhatsapp> sesion = sesionWhatsappService.verificarSesion(telefono);
         Optional<Dispositivo> dispositivo = dispositivoRepository.findByNumeroWhatsapp(telefono);
 
+        // Si la sesion esta expirada pero existe, intentar renovarla automaticamente
+        boolean sesionActiva = sesion.isPresent();
+        if (!sesionActiva) {
+            try {
+                SesionWhatsapp renovada = sesionWhatsappService.renovarSesion(telefono);
+                sesionActiva = true;
+                log.info("Sesion WhatsApp renovada automaticamente para {}", telefono);
+            } catch (Exception e) {
+                log.debug("No se pudo renovar sesion para {}: {}", telefono, e.getMessage());
+            }
+        }
+
         boolean cuentaExiste = false;
         if (dispositivo.isPresent()) {
             cuentaExiste = usuarioRepository.findById(dispositivo.get().getUsuarioId()).isPresent();
@@ -92,11 +104,11 @@ public class WhatsappAuthController {
         }
 
         WhatsappAuthEstadoResponse estado = WhatsappAuthEstadoResponse.builder()
-                .sesionActiva(sesion.isPresent())
+                .sesionActiva(sesionActiva)
                 .cuentaExiste(cuentaExiste)
                 .dispositivoRegistrado(dispositivo.isPresent())
                 .dispositivoVerificado(dispositivo.map(Dispositivo::isVerificado).orElse(false))
-                .mensaje(construirMensajeEstado(sesion.isPresent(), cuentaExiste, dispositivo.isPresent()))
+                .mensaje(construirMensajeEstado(sesionActiva, cuentaExiste, dispositivo.isPresent()))
                 .build();
 
         return ResponseEntity.ok(ApiResponse.success(estado));
@@ -104,21 +116,52 @@ public class WhatsappAuthController {
 
     @GetMapping("/obtener-token")
     @Operation(summary = "Obtener token JWT de sesion activa",
-            description = "Retorna el token JWT de una sesion WhatsApp activa. Solo para uso interno del servidor MCP.")
+            description = "Retorna el token JWT de una sesion WhatsApp activa. Solo para uso interno del servidor MCP. "
+                    + "Si el JWT almacenado esta expirado, renueva la sesion automaticamente.")
     public ResponseEntity<ApiResponse<Map<String, Object>>> obtenerToken(
             @RequestParam String numeroWhatsapp) {
 
         String telefono = normalizarTelefono(numeroWhatsapp);
 
         SesionWhatsapp sesion = sesionWhatsappService.verificarSesion(telefono)
-                .orElseThrow(() -> new DomainException("No hay sesion WhatsApp activa para este numero."));
+                .orElse(null);
+
+        if (sesion == null) {
+            sesion = renovarSesionSiExiste(telefono);
+        }
+
+        String token = sesion.getToken();
+        if (isJwtExpired(token)) {
+            log.info("JWT expirado para sesion WhatsApp {}, renovando automaticamente", telefono);
+            sesion = sesionWhatsappService.renovarSesion(telefono);
+            token = sesion.getToken();
+        }
 
         sesionWhatsappService.actualizarActividad(telefono);
 
         return ResponseEntity.ok(ApiResponse.success(Map.of(
-                "token", sesion.getToken(),
+                "token", token,
                 "usuarioId", sesion.getUsuarioId().toString()
         )));
+    }
+
+    private boolean isJwtExpired(String token) {
+        try {
+            jwtService.extractUsername(token);
+            return false;
+        } catch (io.jsonwebtoken.ExpiredJwtException e) {
+            return true;
+        } catch (Exception e) {
+            return true;
+        }
+    }
+
+    private SesionWhatsapp renovarSesionSiExiste(String telefono) {
+        try {
+            return sesionWhatsappService.renovarSesion(telefono);
+        } catch (Exception e) {
+            throw new DomainException("No hay sesion WhatsApp activa para este numero.");
+        }
     }
 
     @PostMapping("/registro")
