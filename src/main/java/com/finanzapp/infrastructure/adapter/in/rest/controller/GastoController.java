@@ -6,7 +6,10 @@ import com.finanzapp.domain.model.GastoMetodoPago;
 import com.finanzapp.domain.model.MetodoPago;
 import com.finanzapp.application.service.GastoService;
 import com.finanzapp.infrastructure.adapter.in.rest.dto.ApiResponse;
+import com.finanzapp.infrastructure.adapter.in.rest.dto.BulkDeleteRequest;
+import com.finanzapp.infrastructure.adapter.in.rest.dto.BulkOperationResponse;
 import com.finanzapp.infrastructure.adapter.in.rest.dto.gasto.GastoRequest;
+import com.finanzapp.infrastructure.adapter.in.rest.dto.gasto.GastoUpdateRequest;
 import com.finanzapp.infrastructure.adapter.in.rest.dto.gasto.GastoResponse;
 import com.finanzapp.infrastructure.adapter.in.rest.dto.gasto.MetodoPagoDetalleRequest;
 import com.finanzapp.infrastructure.security.CustomUserDetails;
@@ -22,6 +25,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -169,9 +173,7 @@ public class GastoController {
     public ResponseEntity<ApiResponse<GastoResponse>> actualizar(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable UUID id,
-            @Valid @RequestBody GastoRequest request) {
-
-        validarCategoria(request);
+            @Valid @RequestBody GastoUpdateRequest request) {
 
         List<GastoMetodoPago> metodos = null;
         if (request.getMetodosPago() != null && !request.getMetodosPago().isEmpty()) {
@@ -209,6 +211,91 @@ public class GastoController {
             @PathVariable UUID id) {
         gastoService.eliminarValidado(id, userDetails.getId());
         return ResponseEntity.ok(ApiResponse.success(null, "Gasto eliminado exitosamente"));
+    }
+
+    @PostMapping("/eliminar-lote")
+    @Operation(summary = "Eliminar gastos en lote", description = "Elimina múltiples gastos por sus IDs")
+    public ResponseEntity<ApiResponse<BulkOperationResponse>> eliminarLote(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @Valid @RequestBody BulkDeleteRequest request) {
+
+        int exitosos = 0;
+        List<BulkOperationResponse.BulkError> errores = new ArrayList<>();
+
+        for (UUID id : request.getIds()) {
+            try {
+                gastoService.eliminarValidado(id, userDetails.getId());
+                exitosos++;
+            } catch (Exception e) {
+                errores.add(new BulkOperationResponse.BulkError(id.toString(), e.getMessage()));
+            }
+        }
+
+        BulkOperationResponse response = BulkOperationResponse.builder()
+                .procesados(request.getIds().size())
+                .exitosos(exitosos)
+                .errores(errores)
+                .build();
+
+        return ResponseEntity.ok(ApiResponse.success(response,
+                String.format("Eliminación en lote completada: %d de %d eliminados", exitosos, request.getIds().size())));
+    }
+
+    @PostMapping("/lote")
+    @Operation(summary = "Registrar gastos en lote", description = "Registra múltiples gastos en una sola operación")
+    public ResponseEntity<ApiResponse<BulkOperationResponse>> registrarLote(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @RequestBody List<GastoRequest> registros) {
+
+        int exitosos = 0;
+        List<BulkOperationResponse.BulkError> errores = new ArrayList<>();
+
+        for (int i = 0; i < registros.size(); i++) {
+            GastoRequest request = registros.get(i);
+            try {
+                validarCategoria(request);
+
+                List<GastoMetodoPago> metodos = null;
+                if (request.getMetodosPago() != null && !request.getMetodosPago().isEmpty()) {
+                    metodos = request.getMetodosPago().stream()
+                            .map(m -> GastoMetodoPago.builder()
+                                    .metodo(m.getMetodo())
+                                    .monto(m.getMonto())
+                                    .build())
+                            .toList();
+                } else if (request.getMetodoPago() != null) {
+                    metodos = List.of(GastoMetodoPago.builder()
+                            .metodo(request.getMetodoPago())
+                            .monto(request.getMonto())
+                            .build());
+                }
+
+                Gasto gasto = Gasto.builder()
+                        .usuarioId(userDetails.getId())
+                        .monto(request.getMonto())
+                        .categoria(request.getCategoria())
+                        .categoriaPersonalizadaId(request.getCategoriaPersonalizadaId())
+                        .deudaId(request.getDeudaId())
+                        .descripcion(request.getDescripcion())
+                        .fecha(request.getFecha())
+                        .metodosPago(metodos)
+                        .build();
+
+                gastoService.registrar(gasto);
+                exitosos++;
+            } catch (Exception e) {
+                errores.add(new BulkOperationResponse.BulkError(String.valueOf(i), e.getMessage()));
+            }
+        }
+
+        BulkOperationResponse response = BulkOperationResponse.builder()
+                .procesados(registros.size())
+                .exitosos(exitosos)
+                .errores(errores)
+                .build();
+
+        return ResponseEntity.ok(ApiResponse.success(response,
+                String.format("Registro en lote completado: %d de %d registrados", exitosos, registros.size())));
     }
 
     private void validarCategoria(GastoRequest request) {

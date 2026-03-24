@@ -3,7 +3,10 @@ package com.finanzapp.infrastructure.adapter.in.rest.controller;
 import com.finanzapp.domain.model.Ahorro;
 import com.finanzapp.application.service.AhorroService;
 import com.finanzapp.infrastructure.adapter.in.rest.dto.ApiResponse;
+import com.finanzapp.infrastructure.adapter.in.rest.dto.BulkDeleteRequest;
+import com.finanzapp.infrastructure.adapter.in.rest.dto.BulkOperationResponse;
 import com.finanzapp.infrastructure.adapter.in.rest.dto.ahorro.AhorroRequest;
+import com.finanzapp.infrastructure.adapter.in.rest.dto.ahorro.AhorroUpdateRequest;
 import com.finanzapp.infrastructure.adapter.in.rest.dto.ahorro.AhorroResponse;
 import com.finanzapp.infrastructure.security.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
@@ -17,6 +20,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -121,7 +125,7 @@ public class AhorroController {
     public ResponseEntity<ApiResponse<AhorroResponse>> actualizar(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable UUID id,
-            @Valid @RequestBody AhorroRequest request) {
+            @Valid @RequestBody AhorroUpdateRequest request) {
 
         Ahorro ahorro = Ahorro.builder()
                 .monto(request.getMonto())
@@ -141,5 +145,71 @@ public class AhorroController {
             @PathVariable UUID id) {
         ahorroService.eliminarValidado(id, userDetails.getId());
         return ResponseEntity.ok(ApiResponse.success(null, "Ahorro eliminado exitosamente"));
+    }
+
+    @PostMapping("/eliminar-lote")
+    @Operation(summary = "Eliminar ahorros en lote", description = "Elimina múltiples ahorros por sus IDs")
+    public ResponseEntity<ApiResponse<BulkOperationResponse>> eliminarLote(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @Valid @RequestBody BulkDeleteRequest request) {
+
+        int exitosos = 0;
+        List<BulkOperationResponse.BulkError> errores = new ArrayList<>();
+
+        for (UUID id : request.getIds()) {
+            try {
+                ahorroService.eliminarValidado(id, userDetails.getId());
+                exitosos++;
+            } catch (Exception e) {
+                errores.add(new BulkOperationResponse.BulkError(id.toString(), e.getMessage()));
+            }
+        }
+
+        BulkOperationResponse response = BulkOperationResponse.builder()
+                .procesados(request.getIds().size())
+                .exitosos(exitosos)
+                .errores(errores)
+                .build();
+
+        return ResponseEntity.ok(ApiResponse.success(response,
+                String.format("Eliminación en lote completada: %d de %d eliminados", exitosos, request.getIds().size())));
+    }
+
+    @PostMapping("/lote")
+    @Operation(summary = "Registrar ahorros en lote", description = "Registra múltiples ahorros en una sola operación")
+    public ResponseEntity<ApiResponse<BulkOperationResponse>> registrarLote(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @RequestBody List<AhorroRequest> registros) {
+
+        int exitosos = 0;
+        List<BulkOperationResponse.BulkError> errores = new ArrayList<>();
+
+        for (int i = 0; i < registros.size(); i++) {
+            AhorroRequest request = registros.get(i);
+            try {
+                Ahorro ahorro = Ahorro.builder()
+                        .usuarioId(userDetails.getId())
+                        .monto(request.getMonto())
+                        .descripcion(request.getDescripcion())
+                        .fecha(request.getFecha())
+                        .metaId(request.getMetaId())
+                        .ingresoId(request.getIngresoId())
+                        .build();
+
+                ahorroService.registrar(ahorro);
+                exitosos++;
+            } catch (Exception e) {
+                errores.add(new BulkOperationResponse.BulkError(String.valueOf(i), e.getMessage()));
+            }
+        }
+
+        BulkOperationResponse response = BulkOperationResponse.builder()
+                .procesados(registros.size())
+                .exitosos(exitosos)
+                .errores(errores)
+                .build();
+
+        return ResponseEntity.ok(ApiResponse.success(response,
+                String.format("Registro en lote completado: %d de %d registrados", exitosos, registros.size())));
     }
 }

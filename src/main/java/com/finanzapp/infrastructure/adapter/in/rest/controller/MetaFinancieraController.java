@@ -4,7 +4,10 @@ import com.finanzapp.domain.model.EstadoMeta;
 import com.finanzapp.domain.model.MetaFinanciera;
 import com.finanzapp.application.service.MetaFinancieraService;
 import com.finanzapp.infrastructure.adapter.in.rest.dto.ApiResponse;
+import com.finanzapp.infrastructure.adapter.in.rest.dto.BulkDeleteRequest;
+import com.finanzapp.infrastructure.adapter.in.rest.dto.BulkOperationResponse;
 import com.finanzapp.infrastructure.adapter.in.rest.dto.meta.MetaFinancieraRequest;
+import com.finanzapp.infrastructure.adapter.in.rest.dto.meta.MetaFinancieraUpdateRequest;
 import com.finanzapp.infrastructure.adapter.in.rest.dto.meta.MetaFinancieraResponse;
 import com.finanzapp.infrastructure.security.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
@@ -16,6 +19,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -87,7 +91,7 @@ public class MetaFinancieraController {
     public ResponseEntity<ApiResponse<MetaFinancieraResponse>> actualizar(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable UUID id,
-            @Valid @RequestBody MetaFinancieraRequest request) {
+            @Valid @RequestBody MetaFinancieraUpdateRequest request) {
 
         MetaFinanciera meta = MetaFinanciera.builder()
                 .nombre(request.getNombre())
@@ -129,5 +133,33 @@ public class MetaFinancieraController {
             @PathVariable UUID id) {
         metaService.eliminarValidado(id, userDetails.getId());
         return ResponseEntity.ok(ApiResponse.success(null, "Meta financiera eliminada exitosamente"));
+    }
+
+    @PostMapping("/eliminar-lote")
+    @Operation(summary = "Eliminar metas en lote", description = "Elimina múltiples metas financieras por sus IDs")
+    public ResponseEntity<ApiResponse<BulkOperationResponse>> eliminarLote(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @Valid @RequestBody BulkDeleteRequest request) {
+
+        int exitosos = 0;
+        List<BulkOperationResponse.BulkError> errores = new ArrayList<>();
+
+        for (UUID id : request.getIds()) {
+            try {
+                metaService.eliminarValidado(id, userDetails.getId());
+                exitosos++;
+            } catch (Exception e) {
+                errores.add(new BulkOperationResponse.BulkError(id.toString(), e.getMessage()));
+            }
+        }
+
+        BulkOperationResponse response = BulkOperationResponse.builder()
+                .procesados(request.getIds().size())
+                .exitosos(exitosos)
+                .errores(errores)
+                .build();
+
+        return ResponseEntity.ok(ApiResponse.success(response,
+                String.format("Eliminación en lote completada: %d de %d eliminados", exitosos, request.getIds().size())));
     }
 }

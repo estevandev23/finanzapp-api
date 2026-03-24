@@ -4,7 +4,10 @@ import com.finanzapp.domain.model.CategoriaIngreso;
 import com.finanzapp.domain.model.Ingreso;
 import com.finanzapp.application.service.IngresoService;
 import com.finanzapp.infrastructure.adapter.in.rest.dto.ApiResponse;
+import com.finanzapp.infrastructure.adapter.in.rest.dto.BulkDeleteRequest;
+import com.finanzapp.infrastructure.adapter.in.rest.dto.BulkOperationResponse;
 import com.finanzapp.infrastructure.adapter.in.rest.dto.ingreso.IngresoRequest;
+import com.finanzapp.infrastructure.adapter.in.rest.dto.ingreso.IngresoUpdateRequest;
 import com.finanzapp.infrastructure.adapter.in.rest.dto.ingreso.IngresoResponse;
 import com.finanzapp.infrastructure.security.CustomUserDetails;
 import com.finanzapp.domain.exception.DomainException;
@@ -19,6 +22,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -132,9 +136,7 @@ public class IngresoController {
     public ResponseEntity<ApiResponse<IngresoResponse>> actualizar(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable UUID id,
-            @Valid @RequestBody IngresoRequest request) {
-
-        validarCategoria(request);
+            @Valid @RequestBody IngresoUpdateRequest request) {
 
         Ingreso ingreso = Ingreso.builder()
                 .monto(request.getMonto())
@@ -159,6 +161,78 @@ public class IngresoController {
             @PathVariable UUID id) {
         ingresoService.eliminarValidado(id, userDetails.getId());
         return ResponseEntity.ok(ApiResponse.success(null, "Ingreso eliminado exitosamente"));
+    }
+
+    @PostMapping("/eliminar-lote")
+    @Operation(summary = "Eliminar ingresos en lote", description = "Elimina múltiples ingresos por sus IDs")
+    public ResponseEntity<ApiResponse<BulkOperationResponse>> eliminarLote(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @Valid @RequestBody BulkDeleteRequest request) {
+
+        int exitosos = 0;
+        List<BulkOperationResponse.BulkError> errores = new ArrayList<>();
+
+        for (UUID id : request.getIds()) {
+            try {
+                ingresoService.eliminarValidado(id, userDetails.getId());
+                exitosos++;
+            } catch (Exception e) {
+                errores.add(new BulkOperationResponse.BulkError(id.toString(), e.getMessage()));
+            }
+        }
+
+        BulkOperationResponse response = BulkOperationResponse.builder()
+                .procesados(request.getIds().size())
+                .exitosos(exitosos)
+                .errores(errores)
+                .build();
+
+        return ResponseEntity.ok(ApiResponse.success(response,
+                String.format("Eliminación en lote completada: %d de %d eliminados", exitosos, request.getIds().size())));
+    }
+
+    @PostMapping("/lote")
+    @Operation(summary = "Registrar ingresos en lote", description = "Registra múltiples ingresos en una sola operación")
+    public ResponseEntity<ApiResponse<BulkOperationResponse>> registrarLote(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @RequestBody List<IngresoRequest> registros) {
+
+        int exitosos = 0;
+        List<BulkOperationResponse.BulkError> errores = new ArrayList<>();
+
+        for (int i = 0; i < registros.size(); i++) {
+            IngresoRequest request = registros.get(i);
+            try {
+                validarCategoria(request);
+
+                Ingreso ingreso = Ingreso.builder()
+                        .usuarioId(userDetails.getId())
+                        .monto(request.getMonto())
+                        .categoria(request.getCategoria())
+                        .categoriaPersonalizadaId(request.getCategoriaPersonalizadaId())
+                        .descripcion(request.getDescripcion())
+                        .fecha(request.getFecha())
+                        .montoAhorro(request.getMontoAhorro())
+                        .metaId(request.getMetaId())
+                        .prestamoId(request.getPrestamoId())
+                        .metodoPago(request.getMetodoPago())
+                        .build();
+
+                ingresoService.registrar(ingreso);
+                exitosos++;
+            } catch (Exception e) {
+                errores.add(new BulkOperationResponse.BulkError(String.valueOf(i), e.getMessage()));
+            }
+        }
+
+        BulkOperationResponse response = BulkOperationResponse.builder()
+                .procesados(registros.size())
+                .exitosos(exitosos)
+                .errores(errores)
+                .build();
+
+        return ResponseEntity.ok(ApiResponse.success(response,
+                String.format("Registro en lote completado: %d de %d registrados", exitosos, registros.size())));
     }
 
     private void validarCategoria(IngresoRequest request) {
