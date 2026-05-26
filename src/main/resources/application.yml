@@ -78,6 +78,10 @@ jwt:
 server:
   port: ${SERVER_PORT:8280}
 
+# OpenAI Configuration
+openai:
+  api-key: ${OPENAI_API_KEY:}
+
 # Logging
 logging:
   level:

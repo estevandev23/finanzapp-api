@@ -406,6 +406,7 @@ class WhatsappAuthControllerTest {
         @DisplayName("Debe indicar sesion inactiva sin sesion")
         void debeIndicarSesionInactivaSinSesion() {
             when(sesionWhatsappService.verificarSesion(NUMERO_NORMALIZADO)).thenReturn(Optional.empty());
+            when(sesionWhatsappService.renovarSesion(NUMERO_NORMALIZADO)).thenThrow(new RuntimeException("No hay sesion para renovar"));
             when(dispositivoRepository.findByNumeroWhatsapp(NUMERO_NORMALIZADO)).thenReturn(Optional.empty());
 
             var response = controller.verificarEstado(NUMERO_WHATSAPP);
