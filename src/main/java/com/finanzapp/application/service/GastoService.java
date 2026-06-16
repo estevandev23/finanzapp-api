@@ -11,7 +11,9 @@ import com.finanzapp.domain.model.Gasto;
 import com.finanzapp.domain.model.GastoMetodoPago;
 import com.finanzapp.domain.model.MetodoPago;
 import com.finanzapp.domain.model.TipoDeuda;
+import com.finanzapp.domain.model.TarjetaCredito;
 import com.finanzapp.domain.port.in.GastoUseCase;
+import com.finanzapp.domain.port.in.TarjetaCreditoUseCase;
 import com.finanzapp.domain.port.out.AbonoDeudaRepositoryPort;
 import com.finanzapp.domain.port.out.DeudaRepositoryPort;
 import com.finanzapp.domain.port.out.GastoRepositoryPort;
@@ -37,9 +39,19 @@ public class GastoService implements GastoUseCase {
     private final GastoRepositoryPort gastoRepository;
     private final DeudaRepositoryPort deudaRepository;
     private final AbonoDeudaRepositoryPort abonoDeudaRepository;
+    private final TarjetaCreditoUseCase tarjetaUseCase;
 
     @Override
     public Gasto registrar(Gasto gasto) {
+        return registrarInterno(gasto, true);
+    }
+
+    @Override
+    public Gasto registrarSinAfectarCupo(Gasto gasto) {
+        return registrarInterno(gasto, false);
+    }
+
+    private Gasto registrarInterno(Gasto gasto, boolean afectarCupo) {
         gasto.setId(UUID.randomUUID());
         gasto.setFechaCreacion(LocalDateTime.now());
         gasto.setFechaActualizacion(LocalDateTime.now());
@@ -64,6 +76,8 @@ public class GastoService implements GastoUseCase {
             });
         }
 
+        aplicarReglasTarjeta(gasto, afectarCupo);
+
         Gasto guardado = gastoRepository.save(gasto);
 
         if (guardado.getDeudaId() != null) {
@@ -71,6 +85,35 @@ public class GastoService implements GastoUseCase {
         }
 
         return guardado;
+    }
+
+    /**
+     * Reglas para gastos pagados con TARJETA_CREDITO:
+     *  - Debe venir tarjetaId.
+     *  - mesFacturacion se calcula a partir del día de corte de la tarjeta.
+     *  - Se aumenta el cupo usado de la tarjeta (puede fallar si no hay cupo).
+     * Para gastos sin tarjeta, mesFacturacion = primer día del mes de la fecha del gasto.
+     */
+    private void aplicarReglasTarjeta(Gasto gasto, boolean afectarCupo) {
+        boolean usaTarjeta = gasto.getMetodosPago() != null && gasto.getMetodosPago().stream()
+                .anyMatch(m -> m.getMetodo() == MetodoPago.TARJETA_CREDITO);
+
+        if (usaTarjeta) {
+            if (gasto.getTarjetaId() == null) {
+                throw new DomainException("Cuando el método de pago es TARJETA_CREDITO debe indicarse la tarjeta (tarjetaId).");
+            }
+            TarjetaCredito tarjeta = tarjetaUseCase.obtenerPorId(gasto.getTarjetaId());
+            if (!tarjeta.getUsuarioId().equals(gasto.getUsuarioId())) {
+                throw new DomainException("La tarjeta indicada no pertenece al usuario.");
+            }
+            gasto.setMesFacturacion(tarjeta.calcularMesFacturacion(gasto.getFecha()));
+            if (afectarCupo) {
+                tarjetaUseCase.aumentarCupoUsado(tarjeta.getId(), gasto.getMonto());
+            }
+        } else {
+            gasto.setTarjetaId(null);
+            gasto.setMesFacturacion(gasto.getFecha().withDayOfMonth(1));
+        }
     }
 
     @Override
@@ -141,6 +184,7 @@ public class GastoService implements GastoUseCase {
     public Gasto actualizar(UUID id, Gasto gastoActualizado) {
         Gasto gasto = obtenerPorId(id);
         BigDecimal montoAnterior = gasto.getMonto();
+        UUID tarjetaAnterior = gasto.getTarjetaId();
 
         if (gastoActualizado.getMonto() != null) {
             gasto.setMonto(gastoActualizado.getMonto());
@@ -157,7 +201,15 @@ public class GastoService implements GastoUseCase {
         if (gastoActualizado.getFecha() != null) {
             gasto.setFecha(gastoActualizado.getFecha());
         }
-        if (gastoActualizado.getMetodosPago() != null && !gastoActualizado.getMetodosPago().isEmpty()) {
+        if (gastoActualizado.getBolsilloId() != null) {
+            gasto.setBolsilloId(gastoActualizado.getBolsilloId());
+        }
+        if (gastoActualizado.getTarjetaId() != null) {
+            gasto.setTarjetaId(gastoActualizado.getTarjetaId());
+        }
+        boolean metodosProvistos = gastoActualizado.getMetodosPago() != null
+                && !gastoActualizado.getMetodosPago().isEmpty();
+        if (metodosProvistos) {
             List<GastoMetodoPago> nuevosMetodos = new ArrayList<>();
             for (GastoMetodoPago mp : gastoActualizado.getMetodosPago()) {
                 nuevosMetodos.add(GastoMetodoPago.builder()
@@ -169,6 +221,10 @@ public class GastoService implements GastoUseCase {
             }
             gasto.setMetodosPago(nuevosMetodos);
         }
+
+        // Reconcilia la tarjeta y su cupo según el nuevo estado del gasto (monto, tarjeta o
+        // método de pago) y mantiene coherente mesFacturacion.
+        sincronizarTarjetaEnActualizacion(gasto, tarjetaAnterior, montoAnterior, metodosProvistos);
 
         gasto.setFechaActualizacion(LocalDateTime.now());
         Gasto guardado = gastoRepository.save(gasto);
@@ -193,6 +249,39 @@ public class GastoService implements GastoUseCase {
         return guardado;
     }
 
+    /**
+     * Reconcilia la tarjeta y su cupo al actualizar un gasto: libera el cupo que consumía el
+     * estado anterior y aplica el del nuevo estado, de modo que los cambios de monto, de tarjeta
+     * o de método de pago queden consistentes. También mantiene coherente mesFacturacion.
+     * En actualizaciones parciales (sin métodos de pago) se conserva el estado de tarjeta previo.
+     */
+    private void sincronizarTarjetaEnActualizacion(Gasto gasto, UUID tarjetaAnterior,
+                                                   BigDecimal montoAnterior, boolean metodosProvistos) {
+        boolean usaTarjeta = metodosProvistos
+                ? gasto.getMetodosPago().stream().anyMatch(m -> m.getMetodo() == MetodoPago.TARJETA_CREDITO)
+                : tarjetaAnterior != null;
+
+        // Libera el cupo que consumía el estado anterior del gasto, si usaba tarjeta.
+        if (tarjetaAnterior != null) {
+            tarjetaUseCase.disminuirCupoUsado(tarjetaAnterior, montoAnterior);
+        }
+
+        if (usaTarjeta) {
+            if (gasto.getTarjetaId() == null) {
+                throw new DomainException("Cuando el método de pago es TARJETA_CREDITO debe indicarse la tarjeta (tarjetaId).");
+            }
+            TarjetaCredito tarjeta = tarjetaUseCase.obtenerPorId(gasto.getTarjetaId());
+            if (!tarjeta.getUsuarioId().equals(gasto.getUsuarioId())) {
+                throw new DomainException("La tarjeta indicada no pertenece al usuario.");
+            }
+            gasto.setMesFacturacion(tarjeta.calcularMesFacturacion(gasto.getFecha()));
+            tarjetaUseCase.aumentarCupoUsado(tarjeta.getId(), gasto.getMonto());
+        } else {
+            gasto.setTarjetaId(null);
+            gasto.setMesFacturacion(gasto.getFecha().withDayOfMonth(1));
+        }
+    }
+
     @Override
     public void eliminar(UUID id) {
         Gasto gasto = obtenerPorId(id);
@@ -208,6 +297,11 @@ public class GastoService implements GastoUseCase {
             });
             abonoDeudaRepository.deleteById(abono.getId());
         });
+
+        // Liberar cupo de la tarjeta si el gasto la usaba
+        if (gasto.getTarjetaId() != null) {
+            tarjetaUseCase.disminuirCupoUsado(gasto.getTarjetaId(), gasto.getMonto());
+        }
 
         gastoRepository.deleteById(id);
     }

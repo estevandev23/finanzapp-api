@@ -28,6 +28,11 @@ public class GastoResponse {
     private String categoriaColor;
     private UUID categoriaPersonalizadaId;
     private UUID deudaId;
+    private UUID tarjetaId;
+    private String tarjetaNombre;
+    private LocalDate mesFacturacion;
+    private UUID bolsilloId;
+    private String bolsilloNombre;
     private String descripcion;
     private LocalDate fecha;
     private List<MetodoPagoDetalleResponse> metodosPago;
@@ -66,6 +71,11 @@ public class GastoResponse {
                 .categoriaColor(gasto.getCategoriaColor())
                 .categoriaPersonalizadaId(gasto.getCategoriaPersonalizadaId())
                 .deudaId(gasto.getDeudaId())
+                .tarjetaId(gasto.getTarjetaId())
+                .tarjetaNombre(gasto.getTarjetaNombre())
+                .mesFacturacion(gasto.getMesFacturacion())
+                .bolsilloId(gasto.getBolsilloId())
+                .bolsilloNombre(gasto.getBolsilloNombre())
                 .descripcion(gasto.getDescripcion())
                 .fecha(gasto.getFecha())
                 .metodosPago(metodos)

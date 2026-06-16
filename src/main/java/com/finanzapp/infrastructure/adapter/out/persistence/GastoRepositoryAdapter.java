@@ -43,6 +43,11 @@ public class GastoRepositoryAdapter implements GastoRepositoryPort {
         entity.setCategoria(gasto.getCategoria());
         entity.setCategoriaPersonalizadaId(gasto.getCategoriaPersonalizadaId());
         entity.setDeudaId(gasto.getDeudaId());
+        entity.setTarjetaId(gasto.getTarjetaId());
+        if (gasto.getMesFacturacion() != null) {
+            entity.setMesFacturacion(gasto.getMesFacturacion());
+        }
+        entity.setBolsilloId(gasto.getBolsilloId());
         entity.setDescripcion(gasto.getDescripcion());
         entity.setFecha(gasto.getFecha());
         entity.setFechaActualizacion(gasto.getFechaActualizacion());
@@ -91,6 +96,14 @@ public class GastoRepositoryAdapter implements GastoRepositoryPort {
     }
 
     @Override
+    public List<Gasto> findByUsuarioIdAndMesFacturacion(UUID usuarioId, LocalDate mesFacturacion) {
+        return repository.findByUsuarioIdAndMesFacturacionOrderByFechaDesc(usuarioId, mesFacturacion)
+                .stream()
+                .map(mapper::toDomain)
+                .collect(Collectors.toList());
+    }
+
+    @Override
     public List<Gasto> findByUsuarioIdAndCategoria(UUID usuarioId, CategoriaGasto categoria) {
         return repository.findByUsuarioIdAndCategoriaOrderByFechaDesc(usuarioId, categoria)
                 .stream()
@@ -106,6 +119,16 @@ public class GastoRepositoryAdapter implements GastoRepositoryPort {
     @Override
     public BigDecimal sumMontoByUsuarioIdAndFechaBetween(UUID usuarioId, LocalDate fechaInicio, LocalDate fechaFin) {
         return repository.sumMontoByUsuarioIdAndFechaBetween(usuarioId, fechaInicio, fechaFin);
+    }
+
+    @Override
+    public BigDecimal sumMontoConTarjetaByUsuarioId(UUID usuarioId) {
+        return repository.sumMontoConTarjetaByUsuarioId(usuarioId);
+    }
+
+    @Override
+    public BigDecimal sumMontoConTarjetaByUsuarioIdAndFechaBetween(UUID usuarioId, LocalDate fechaInicio, LocalDate fechaFin) {
+        return repository.sumMontoConTarjetaByUsuarioIdAndFechaBetween(usuarioId, fechaInicio, fechaFin);
     }
 
     @Override

@@ -56,6 +56,7 @@ public class DeudaController {
                 .montoTotal(request.getMontoTotal())
                 .fechaInicio(request.getFechaInicio() != null ? request.getFechaInicio() : LocalDate.now())
                 .fechaLimite(request.getFechaLimite())
+                .tarjetaId(request.getTarjetaId() != null ? java.util.UUID.fromString(request.getTarjetaId()) : null)
                 .build();
 
         Deuda creada = deudaService.registrar(deuda);
@@ -120,6 +121,7 @@ public class DeudaController {
                                 : null)
                 .montoTotal(request.getMontoTotal())
                 .fechaLimite(request.getFechaLimite())
+                .tarjetaId(request.getTarjetaId() != null ? java.util.UUID.fromString(request.getTarjetaId()) : null)
                 .build();
 
         Deuda actualizada = deudaService.actualizarValidado(java.util.UUID.fromString(id), datos, userDetails.getId());
@@ -188,6 +190,7 @@ public class DeudaController {
                         .montoTotal(request.getMontoTotal())
                         .fechaInicio(request.getFechaInicio() != null ? request.getFechaInicio() : LocalDate.now())
                         .fechaLimite(request.getFechaLimite())
+                        .tarjetaId(request.getTarjetaId() != null ? java.util.UUID.fromString(request.getTarjetaId()) : null)
                         .build();
 
                 deudaService.registrar(deuda);

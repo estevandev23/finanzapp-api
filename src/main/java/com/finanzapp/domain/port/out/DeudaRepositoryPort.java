@@ -16,6 +16,7 @@ public interface DeudaRepositoryPort {
     List<Deuda> findByUsuarioIdAndTipo(UUID usuarioId, TipoDeuda tipo);
     List<Deuda> findByUsuarioIdAndEstado(UUID usuarioId, EstadoDeuda estado);
     BigDecimal sumMontoRestanteByUsuarioIdAndTipo(UUID usuarioId, TipoDeuda tipo);
+    BigDecimal sumMontoRestanteConTarjetaByUsuarioIdAndTipo(UUID usuarioId, TipoDeuda tipo);
     BigDecimal sumMontoAbonadoByUsuarioIdAndTipo(UUID usuarioId, TipoDeuda tipo);
     void deleteById(UUID id);
 }

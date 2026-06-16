@@ -23,6 +23,9 @@ public interface DeudaJpaRepository extends JpaRepository<DeudaEntity, UUID> {
     @Query("SELECT SUM(d.montoRestante) FROM DeudaEntity d WHERE d.usuario.id = :usuarioId AND d.tipo = :tipo AND d.estado != 'COMPLETADA'")
     BigDecimal sumMontoRestanteByUsuarioIdAndTipo(UUID usuarioId, TipoDeuda tipo);
 
+    @Query("SELECT COALESCE(SUM(d.montoRestante), 0) FROM DeudaEntity d WHERE d.usuario.id = :usuarioId AND d.tipo = :tipo AND d.estado != 'COMPLETADA' AND d.tarjetaId IS NOT NULL")
+    BigDecimal sumMontoRestanteConTarjetaByUsuarioIdAndTipo(UUID usuarioId, TipoDeuda tipo);
+
     @Query("SELECT SUM(d.montoAbonado) FROM DeudaEntity d WHERE d.usuario.id = :usuarioId AND d.tipo = :tipo")
     BigDecimal sumMontoAbonadoByUsuarioIdAndTipo(UUID usuarioId, TipoDeuda tipo);
 }

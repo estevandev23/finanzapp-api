@@ -35,4 +35,6 @@ public class DeudaRequest {
     private LocalDate fechaInicio;
 
     private LocalDate fechaLimite;
+
+    private String tarjetaId;
 }

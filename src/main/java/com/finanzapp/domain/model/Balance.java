@@ -24,12 +24,29 @@ public class Balance {
 
     public static Balance calcular(BigDecimal ingresos, BigDecimal gastos, BigDecimal ahorrosTotales,
                                     BigDecimal ahorrosDesdeIngresos) {
-        return calcular(ingresos, gastos, ahorrosTotales, ahorrosDesdeIngresos, BigDecimal.ZERO, BigDecimal.ZERO);
+        return calcular(ingresos, gastos, ahorrosTotales, ahorrosDesdeIngresos,
+                BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
     }
 
     public static Balance calcular(BigDecimal ingresos, BigDecimal gastos, BigDecimal ahorrosTotales,
                                     BigDecimal ahorrosDesdeIngresos, BigDecimal deudas, BigDecimal prestamos) {
-        BigDecimal disponible = ingresos.subtract(gastos).subtract(ahorrosDesdeIngresos).subtract(deudas);
+        return calcular(ingresos, gastos, ahorrosTotales, ahorrosDesdeIngresos, deudas, prestamos,
+                BigDecimal.ZERO, BigDecimal.ZERO);
+    }
+
+    /**
+     * @param gastosEnTarjeta      gastos pagados con tarjeta de crédito (no afectan dinero disponible)
+     * @param deudasEnTarjeta      saldo de deudas adquiridas con tarjeta de crédito (no afectan dinero disponible)
+     */
+    public static Balance calcular(BigDecimal ingresos, BigDecimal gastos, BigDecimal ahorrosTotales,
+                                    BigDecimal ahorrosDesdeIngresos, BigDecimal deudas, BigDecimal prestamos,
+                                    BigDecimal gastosEnTarjeta, BigDecimal deudasEnTarjeta) {
+        BigDecimal gastosAfectanDisponible = gastos.subtract(orZero(gastosEnTarjeta));
+        BigDecimal deudasAfectanDisponible = deudas.subtract(orZero(deudasEnTarjeta));
+        BigDecimal disponible = ingresos
+                .subtract(gastosAfectanDisponible)
+                .subtract(ahorrosDesdeIngresos)
+                .subtract(deudasAfectanDisponible);
         return Balance.builder()
                 .totalIngresos(ingresos)
                 .totalGastos(gastos)
@@ -39,5 +56,9 @@ public class Balance {
                 .totalPrestamos(prestamos)
                 .dineroDisponible(disponible)
                 .build();
+    }
+
+    private static BigDecimal orZero(BigDecimal valor) {
+        return valor != null ? valor : BigDecimal.ZERO;
     }
 }

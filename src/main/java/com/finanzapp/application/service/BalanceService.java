@@ -38,8 +38,12 @@ public class BalanceService implements BalanceUseCase {
                 deudaRepository.sumMontoRestanteByUsuarioIdAndTipo(usuarioId, TipoDeuda.DEUDA));
         BigDecimal totalPrestamos = obtenerValorOCero(
                 deudaRepository.sumMontoRestanteByUsuarioIdAndTipo(usuarioId, TipoDeuda.PRESTAMO));
+        BigDecimal gastosEnTarjeta = obtenerValorOCero(gastoRepository.sumMontoConTarjetaByUsuarioId(usuarioId));
+        BigDecimal deudasEnTarjeta = obtenerValorOCero(
+                deudaRepository.sumMontoRestanteConTarjetaByUsuarioIdAndTipo(usuarioId, TipoDeuda.DEUDA));
 
-        Balance balance = Balance.calcular(totalIngresos, totalGastos, totalAhorros, ahorrosDesdeIngresos, totalDeudas, totalPrestamos);
+        Balance balance = Balance.calcular(totalIngresos, totalGastos, totalAhorros, ahorrosDesdeIngresos,
+                totalDeudas, totalPrestamos, gastosEnTarjeta, deudasEnTarjeta);
         balance.setUsuarioId(usuarioId);
         return balance;
     }
@@ -54,8 +58,11 @@ public class BalanceService implements BalanceUseCase {
                 ahorroRepository.sumMontoByUsuarioIdAndFechaBetween(usuarioId, fechaInicio, fechaFin));
         BigDecimal ahorrosDesdeIngresos = obtenerValorOCero(
                 ingresoRepository.sumMontoAhorroByUsuarioIdAndFechaBetween(usuarioId, fechaInicio, fechaFin));
+        BigDecimal gastosEnTarjeta = obtenerValorOCero(
+                gastoRepository.sumMontoConTarjetaByUsuarioIdAndFechaBetween(usuarioId, fechaInicio, fechaFin));
 
-        Balance balance = Balance.calcular(totalIngresos, totalGastos, totalAhorros, ahorrosDesdeIngresos);
+        Balance balance = Balance.calcular(totalIngresos, totalGastos, totalAhorros, ahorrosDesdeIngresos,
+                BigDecimal.ZERO, BigDecimal.ZERO, gastosEnTarjeta, BigDecimal.ZERO);
         balance.setUsuarioId(usuarioId);
         return balance;
     }

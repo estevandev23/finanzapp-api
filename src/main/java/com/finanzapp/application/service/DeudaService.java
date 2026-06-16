@@ -13,6 +13,7 @@ import com.finanzapp.domain.model.Ingreso;
 import com.finanzapp.domain.model.MetodoPago;
 import com.finanzapp.domain.model.TipoDeuda;
 import com.finanzapp.domain.port.in.DeudaUseCase;
+import com.finanzapp.domain.port.in.TarjetaCreditoUseCase;
 import com.finanzapp.domain.port.out.AbonoDeudaRepositoryPort;
 import com.finanzapp.domain.port.out.DeudaRepositoryPort;
 import com.finanzapp.domain.port.out.GastoRepositoryPort;
@@ -36,6 +37,7 @@ public class DeudaService implements DeudaUseCase {
     private final AbonoDeudaRepositoryPort abonoRepository;
     private final GastoRepositoryPort gastoRepository;
     private final IngresoRepositoryPort ingresoRepository;
+    private final TarjetaCreditoUseCase tarjetaUseCase;
 
     @Override
     public Deuda registrar(Deuda deuda) {
@@ -45,6 +47,8 @@ public class DeudaService implements DeudaUseCase {
         deuda.setEstado(EstadoDeuda.PENDIENTE);
         deuda.setFechaCreacion(LocalDateTime.now());
         deuda.setFechaActualizacion(LocalDateTime.now());
+
+        aplicarReglasTarjeta(deuda);
 
         Deuda guardada = deudaRepository.save(deuda);
 
@@ -90,6 +94,11 @@ public class DeudaService implements DeudaUseCase {
     public Deuda actualizar(UUID id, Deuda datosActualizados) {
         Deuda existente = obtenerPorId(id);
 
+        UUID tarjetaAnterior = existente.getTarjetaId();
+        BigDecimal restanteAnterior = existente.getMontoRestante() != null
+                ? existente.getMontoRestante()
+                : BigDecimal.ZERO;
+
         if (datosActualizados.getDescripcion() != null) {
             existente.setDescripcion(datosActualizados.getDescripcion());
         }
@@ -123,13 +132,72 @@ public class DeudaService implements DeudaUseCase {
             abonoRepository.save(auditoria);
         }
 
+        // Solo aplica a deudas (no a prestamos): la asociacion con tarjeta de credito
+        // ocupa cupo. Si el tipo no es DEUDA, se fuerza tarjetaId=null.
+        UUID tarjetaNueva = existente.getTipo() == TipoDeuda.DEUDA
+                ? datosActualizados.getTarjetaId()
+                : null;
+        existente.setTarjetaId(tarjetaNueva);
+        BigDecimal restanteNuevo = existente.getMontoRestante() != null
+                ? existente.getMontoRestante()
+                : BigDecimal.ZERO;
+
+        sincronizarCupoEnActualizacion(existente, tarjetaAnterior, restanteAnterior, tarjetaNueva, restanteNuevo);
+
         existente.setFechaActualizacion(LocalDateTime.now());
         return deudaRepository.save(existente);
     }
 
+    /**
+     * Ajusta el cupo usado de las tarjetas cuando se actualiza una deuda. Cubre los casos
+     * de asignar, cambiar o desasociar una tarjeta y los cambios de monto cuando la deuda
+     * mantiene una tarjeta asociada.
+     */
+    private void sincronizarCupoEnActualizacion(Deuda deuda,
+                                                UUID tarjetaAnterior,
+                                                BigDecimal restanteAnterior,
+                                                UUID tarjetaNueva,
+                                                BigDecimal restanteNuevo) {
+        if (deuda.getTipo() != TipoDeuda.DEUDA) return;
+
+        boolean cambioTarjeta = !java.util.Objects.equals(tarjetaAnterior, tarjetaNueva);
+
+        if (cambioTarjeta) {
+            if (tarjetaAnterior != null && restanteAnterior.signum() > 0) {
+                tarjetaUseCase.disminuirCupoUsado(tarjetaAnterior, restanteAnterior);
+            }
+            if (tarjetaNueva != null && restanteNuevo.signum() > 0) {
+                validarTarjetaPropia(tarjetaNueva, deuda.getUsuarioId());
+                tarjetaUseCase.aumentarCupoUsado(tarjetaNueva, restanteNuevo);
+            }
+            return;
+        }
+
+        if (tarjetaNueva == null) return;
+
+        BigDecimal delta = restanteNuevo.subtract(restanteAnterior);
+        if (delta.signum() > 0) {
+            tarjetaUseCase.aumentarCupoUsado(tarjetaNueva, delta);
+        } else if (delta.signum() < 0) {
+            tarjetaUseCase.disminuirCupoUsado(tarjetaNueva, delta.abs());
+        }
+    }
+
+    private void validarTarjetaPropia(UUID tarjetaId, UUID usuarioId) {
+        com.finanzapp.domain.model.TarjetaCredito tarjeta = tarjetaUseCase.obtenerPorId(tarjetaId);
+        if (!tarjeta.getUsuarioId().equals(usuarioId)) {
+            throw new DomainException("La tarjeta indicada no pertenece al usuario.");
+        }
+    }
+
     @Override
     public void eliminar(UUID id) {
-        obtenerPorId(id);
+        Deuda deuda = obtenerPorId(id);
+        if (deuda.getTipo() == TipoDeuda.DEUDA && deuda.getTarjetaId() != null
+                && deuda.getMontoRestante() != null && deuda.getMontoRestante().signum() > 0) {
+            // Libera del cupo de la tarjeta el saldo pendiente al eliminar la deuda.
+            tarjetaUseCase.disminuirCupoUsado(deuda.getTarjetaId(), deuda.getMontoRestante());
+        }
         // Eliminar en cascada respetando las FK: abonos → gastos → ingresos → deuda
         abonoRepository.deleteAllByDeudaId(id);
         gastoRepository.deleteAllByDeudaId(id);
@@ -172,6 +240,10 @@ public class DeudaService implements DeudaUseCase {
 
         if (deuda.getTipo() == TipoDeuda.DEUDA) {
             guardado = crearGastoParaAbono(guardado, deuda, metodoPago);
+            if (deuda.getTarjetaId() != null) {
+                // Libera cupo de la tarjeta: el abono salda parte del saldo en tarjeta.
+                tarjetaUseCase.disminuirCupoUsado(deuda.getTarjetaId(), monto);
+            }
         } else {
             guardado = crearIngresoParaAbono(guardado, deuda, metodoPago);
         }
@@ -225,6 +297,7 @@ public class DeudaService implements DeudaUseCase {
                 .monto(abono.getMonto())
                 .build();
 
+        LocalDate fechaGasto = LocalDate.now();
         Gasto gasto = Gasto.builder()
                 .id(UUID.randomUUID())
                 .usuarioId(deuda.getUsuarioId())
@@ -234,7 +307,8 @@ public class DeudaService implements DeudaUseCase {
                 .deudaId(deuda.getId())
                 .descripcion(descripcionGasto)
                 .metodosPago(List.of(gastoMetodoPago))
-                .fecha(LocalDate.now())
+                .fecha(fechaGasto)
+                .mesFacturacion(fechaGasto.withDayOfMonth(1))
                 .fechaCreacion(LocalDateTime.now())
                 .fechaActualizacion(LocalDateTime.now())
                 .build();
@@ -300,5 +374,23 @@ public class DeudaService implements DeudaUseCase {
         } else if (deuda.getMontoAbonado().compareTo(BigDecimal.ZERO) > 0) {
             deuda.setEstado(EstadoDeuda.EN_CURSO);
         }
+    }
+
+    /**
+     * Si la deuda está asociada a una tarjeta de crédito (compra a crédito), aumenta el
+     * cupo usado por el saldo restante. Solo aplica para tipo DEUDA (no para PRESTAMO).
+     */
+    private void aplicarReglasTarjeta(Deuda deuda) {
+        if (deuda.getTarjetaId() == null) return;
+        if (deuda.getTipo() != TipoDeuda.DEUDA) {
+            // Un prestamo (dinero que me deben) no aplica contra el cupo de mi tarjeta.
+            deuda.setTarjetaId(null);
+            return;
+        }
+        com.finanzapp.domain.model.TarjetaCredito tarjeta = tarjetaUseCase.obtenerPorId(deuda.getTarjetaId());
+        if (!tarjeta.getUsuarioId().equals(deuda.getUsuarioId())) {
+            throw new DomainException("La tarjeta indicada no pertenece al usuario.");
+        }
+        tarjetaUseCase.aumentarCupoUsado(tarjeta.getId(), deuda.getMontoTotal());
     }
 }

@@ -27,6 +27,10 @@ public class GastoUpdateRequest {
 
     private UUID deudaId;
 
+    private UUID tarjetaId;
+
+    private UUID bolsilloId;
+
     private String descripcion;
 
     private LocalDate fecha;

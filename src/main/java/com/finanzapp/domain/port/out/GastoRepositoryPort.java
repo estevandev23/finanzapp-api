@@ -14,9 +14,12 @@ public interface GastoRepositoryPort {
     Optional<Gasto> findById(UUID id);
     List<Gasto> findByUsuarioId(UUID usuarioId);
     List<Gasto> findByUsuarioIdAndFechaBetween(UUID usuarioId, LocalDate fechaInicio, LocalDate fechaFin);
+    List<Gasto> findByUsuarioIdAndMesFacturacion(UUID usuarioId, LocalDate mesFacturacion);
     List<Gasto> findByUsuarioIdAndCategoria(UUID usuarioId, CategoriaGasto categoria);
     BigDecimal sumMontoByUsuarioId(UUID usuarioId);
     BigDecimal sumMontoByUsuarioIdAndFechaBetween(UUID usuarioId, LocalDate fechaInicio, LocalDate fechaFin);
+    BigDecimal sumMontoConTarjetaByUsuarioId(UUID usuarioId);
+    BigDecimal sumMontoConTarjetaByUsuarioIdAndFechaBetween(UUID usuarioId, LocalDate fechaInicio, LocalDate fechaFin);
     List<Object[]> sumMontoByUsuarioIdGroupByCategoria(UUID usuarioId);
     List<Object[]> sumMontoByUsuarioIdAndFechaBetweenGroupByCategoria(UUID usuarioId, LocalDate fechaInicio, LocalDate fechaFin);
     void deleteById(UUID id);

@@ -24,6 +24,11 @@ public class Gasto {
     private String categoriaNombre;
     private String categoriaColor;
     private UUID deudaId;
+    private UUID tarjetaId;
+    private String tarjetaNombre;
+    private LocalDate mesFacturacion;
+    private UUID bolsilloId;
+    private String bolsilloNombre;
     private String descripcion;
     private LocalDate fecha;
     private List<GastoMetodoPago> metodosPago;

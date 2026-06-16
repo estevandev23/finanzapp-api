@@ -20,6 +20,8 @@ public interface GastoJpaRepository extends JpaRepository<GastoEntity, UUID> {
 
     List<GastoEntity> findByUsuarioIdAndFechaBetweenOrderByFechaDesc(UUID usuarioId, LocalDate fechaInicio, LocalDate fechaFin);
 
+    List<GastoEntity> findByUsuarioIdAndMesFacturacionOrderByFechaDesc(UUID usuarioId, LocalDate mesFacturacion);
+
     List<GastoEntity> findByUsuarioIdAndCategoriaOrderByFechaDesc(UUID usuarioId, CategoriaGasto categoria);
 
     @Query("SELECT COALESCE(SUM(g.monto), 0) FROM GastoEntity g WHERE g.usuarioId = :usuarioId")
@@ -27,6 +29,12 @@ public interface GastoJpaRepository extends JpaRepository<GastoEntity, UUID> {
 
     @Query("SELECT COALESCE(SUM(g.monto), 0) FROM GastoEntity g WHERE g.usuarioId = :usuarioId AND g.fecha BETWEEN :fechaInicio AND :fechaFin")
     BigDecimal sumMontoByUsuarioIdAndFechaBetween(@Param("usuarioId") UUID usuarioId, @Param("fechaInicio") LocalDate fechaInicio, @Param("fechaFin") LocalDate fechaFin);
+
+    @Query("SELECT COALESCE(SUM(g.monto), 0) FROM GastoEntity g WHERE g.usuarioId = :usuarioId AND g.tarjetaId IS NOT NULL")
+    BigDecimal sumMontoConTarjetaByUsuarioId(@Param("usuarioId") UUID usuarioId);
+
+    @Query("SELECT COALESCE(SUM(g.monto), 0) FROM GastoEntity g WHERE g.usuarioId = :usuarioId AND g.tarjetaId IS NOT NULL AND g.fecha BETWEEN :fechaInicio AND :fechaFin")
+    BigDecimal sumMontoConTarjetaByUsuarioIdAndFechaBetween(@Param("usuarioId") UUID usuarioId, @Param("fechaInicio") LocalDate fechaInicio, @Param("fechaFin") LocalDate fechaFin);
 
     @Query("SELECT g.categoria, SUM(g.monto) FROM GastoEntity g WHERE g.usuarioId = :usuarioId GROUP BY g.categoria")
     List<Object[]> sumMontoByUsuarioIdGroupByCategoria(@Param("usuarioId") UUID usuarioId);

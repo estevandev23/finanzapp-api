@@ -61,6 +61,11 @@ public class DeudaRepositoryAdapter implements DeudaRepositoryPort {
     }
 
     @Override
+    public BigDecimal sumMontoRestanteConTarjetaByUsuarioIdAndTipo(UUID usuarioId, TipoDeuda tipo) {
+        return repository.sumMontoRestanteConTarjetaByUsuarioIdAndTipo(usuarioId, tipo);
+    }
+
+    @Override
     public BigDecimal sumMontoAbonadoByUsuarioIdAndTipo(UUID usuarioId, TipoDeuda tipo) {
         return repository.sumMontoAbonadoByUsuarioIdAndTipo(usuarioId, tipo);
     }

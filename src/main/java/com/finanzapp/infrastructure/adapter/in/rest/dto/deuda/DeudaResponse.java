@@ -33,6 +33,8 @@ public class DeudaResponse {
     private BigDecimal porcentajeAvance;
     private EstadoDeuda estado;
     private String estadoDescripcion;
+    private UUID tarjetaId;
+    private String tarjetaNombre;
     private LocalDate fechaInicio;
     private LocalDate fechaLimite;
     private LocalDateTime fechaCreacion;
@@ -54,6 +56,8 @@ public class DeudaResponse {
                 .porcentajeAvance(deuda.getPorcentajeAvance())
                 .estado(deuda.getEstado())
                 .estadoDescripcion(deuda.getEstado().getDescripcion())
+                .tarjetaId(deuda.getTarjetaId())
+                .tarjetaNombre(deuda.getTarjetaNombre())
                 .fechaInicio(deuda.getFechaInicio())
                 .fechaLimite(deuda.getFechaLimite())
                 .fechaCreacion(deuda.getFechaCreacion())

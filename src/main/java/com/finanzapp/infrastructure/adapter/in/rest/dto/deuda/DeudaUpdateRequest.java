@@ -25,4 +25,6 @@ public class DeudaUpdateRequest {
     private BigDecimal montoTotal;
 
     private LocalDate fechaLimite;
+
+    private String tarjetaId;
 }

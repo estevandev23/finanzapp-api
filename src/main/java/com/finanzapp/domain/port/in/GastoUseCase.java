@@ -11,6 +11,14 @@ import java.util.UUID;
 
 public interface GastoUseCase {
     Gasto registrar(Gasto gasto);
+
+    /**
+     * Registra el gasto sin aumentar el cupo usado de la tarjeta de crédito. Se usa cuando
+     * el consumo del cupo se gestiona en otra entidad (por ejemplo, una deuda asociada a la
+     * compra), para evitar contar el mismo movimiento dos veces contra la tarjeta.
+     */
+    Gasto registrarSinAfectarCupo(Gasto gasto);
+
     Gasto obtenerPorId(UUID id);
     List<Gasto> listarPorUsuario(UUID usuarioId);
     List<Gasto> listarPorPeriodo(UUID usuarioId, LocalDate fechaInicio, LocalDate fechaFin);

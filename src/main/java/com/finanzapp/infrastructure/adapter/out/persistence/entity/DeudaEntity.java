@@ -62,6 +62,13 @@ public class DeudaEntity {
     @Column(nullable = false, length = 20)
     private EstadoDeuda estado;
 
+    @Column(name = "tarjeta_id", columnDefinition = "uuid")
+    private UUID tarjetaId;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "tarjeta_id", insertable = false, updatable = false)
+    private TarjetaCreditoEntity tarjeta;
+
     @Column(name = "fecha_inicio")
     private LocalDate fechaInicio;
 

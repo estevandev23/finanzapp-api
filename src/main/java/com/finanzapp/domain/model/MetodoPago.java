@@ -4,6 +4,7 @@ public enum MetodoPago {
     EFECTIVO("Efectivo"),
     NEQUI("Nequi"),
     BANCOLOMBIA("Bancolombia"),
+    TARJETA_CREDITO("Tarjeta de Crédito"),
     OTRO("Otro");
 
     private final String descripcion;

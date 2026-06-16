@@ -40,6 +40,21 @@ public class EmailService {
         }
     }
 
+    public void enviarNotificacion(String destinatario, String asunto, String cuerpo) {
+        try {
+            SimpleMailMessage mensaje = new SimpleMailMessage();
+            mensaje.setFrom(fromEmail);
+            mensaje.setTo(destinatario);
+            mensaje.setSubject(asunto);
+            mensaje.setText(cuerpo);
+            mailSender.send(mensaje);
+            log.info("Notificacion enviada a {} - {}", destinatario, asunto);
+        } catch (Exception e) {
+            log.error("Error al enviar notificacion a {}: {}", destinatario, e.getMessage());
+            throw new RuntimeException("No se pudo enviar la notificacion");
+        }
+    }
+
     public void enviarRecuperacionPasswordHtml(String destinatario, String codigo) {
         try {
             MimeMessage mimeMessage = mailSender.createMimeMessage();

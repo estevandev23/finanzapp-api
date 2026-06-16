@@ -40,6 +40,15 @@ public class GastoEntity {
     @Column(name = "deuda_id", columnDefinition = "uuid")
     private UUID deudaId;
 
+    @Column(name = "tarjeta_id", columnDefinition = "uuid")
+    private UUID tarjetaId;
+
+    @Column(name = "mes_facturacion", nullable = false)
+    private LocalDate mesFacturacion;
+
+    @Column(name = "bolsillo_id", columnDefinition = "uuid")
+    private UUID bolsilloId;
+
     private String descripcion;
 
     @Column(nullable = false)
@@ -58,6 +67,14 @@ public class GastoEntity {
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "categoria_personalizada_id", insertable = false, updatable = false)
     private CategoriaPersonalizadaEntity categoriaPersonalizada;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "tarjeta_id", insertable = false, updatable = false)
+    private TarjetaCreditoEntity tarjeta;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "bolsillo_id", insertable = false, updatable = false)
+    private BolsilloEntity bolsillo;
 
     @OneToMany(mappedBy = "gasto", fetch = FetchType.EAGER, cascade = CascadeType.ALL, orphanRemoval = true)
     private List<GastoMetodoPagoEntity> metodosPago;

@@ -29,6 +29,8 @@ public class Deuda {
     private BigDecimal montoAbonado;
     private BigDecimal montoRestante;
     private EstadoDeuda estado;
+    private UUID tarjetaId;
+    private String tarjetaNombre;
     private LocalDate fechaInicio;
     private LocalDate fechaLimite;
     private LocalDateTime fechaCreacion;
